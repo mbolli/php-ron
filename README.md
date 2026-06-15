@@ -2,7 +2,8 @@
 
 [![PHP](https://img.shields.io/badge/php-%E2%89%A58.1-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-200%20passing-brightgreen)](tests/)
+[![Downloads](https://img.shields.io/packagist/dt/mbolli/php-ron)](https://packagist.org/packages/mbolli/php-ron)
+[![Tests](https://img.shields.io/badge/tests-217%20passing-brightgreen)](tests/)
 [![PHPStan](https://img.shields.io/badge/PHPStan-level%209-brightgreen)](.phpstan.neon)
 [![Code style](https://img.shields.io/badge/code%20style-php--cs--fixer-brightgreen)](.php-cs-fixer.php)
 
