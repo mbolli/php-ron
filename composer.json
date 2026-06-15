@@ -1,0 +1,51 @@
+{
+    "name": "mbolli/php-ron",
+    "description": "Performance-focused PHP implementation of RON (Readable Object Notation)",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.1",
+        "ext-hash": "*",
+        "ext-mbstring": "*"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.60",
+        "phpstan/extension-installer": "^1.4",
+        "phpstan/phpstan": "^2.0",
+        "phpstan/phpstan-deprecation-rules": "^2.0",
+        "phpunit/phpunit": "^10.5 || ^11.0",
+        "rector/type-perfect": "^2.0",
+        "spaze/phpstan-disallowed-calls": "^4.9",
+        "tomasvotruba/type-coverage": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Mbolli\\Ron\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Mbolli\\Ron\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "post-install-cmd": "@php bin/init-submodules.php",
+        "post-update-cmd": "@php bin/init-submodules.php",
+        "test": "phpunit",
+        "fix": "php-cs-fixer fix --ansi --allow-risky=yes -v --config=./.php-cs-fixer.php --allow-unsupported-php-version=yes",
+        "lint": "@fix --dry-run --diff",
+        "phpstan": "phpstan analyse -c .phpstan.neon",
+        "benchmark": "@php -d opcache.enable_cli=1 -d opcache.jit_buffer_size=128M -d opcache.jit=tracing bin/benchmark.php",
+        "check": [
+            "@lint",
+            "@phpstan",
+            "@test"
+        ]
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "phpstan/extension-installer": true
+        }
+    }
+}
