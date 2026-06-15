@@ -2,7 +2,7 @@
 
 [![PHP](https://img.shields.io/badge/php-%E2%89%A58.1-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-95%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-200%20passing-brightgreen)](tests/)
 [![PHPStan](https://img.shields.io/badge/PHPStan-level%209-brightgreen)](.phpstan.neon)
 [![Code style](https://img.shields.io/badge/code%20style-php--cs--fixer-brightgreen)](.php-cs-fixer.php)
 
@@ -12,6 +12,11 @@ RON keeps JSON's value model but drops avoidable syntax: top-level object braces
 elided, strings can be bare, commas are optional separators, and quoted strings use repeated
 `'`/`"` delimiters with no backslash escapes. It converts losslessly to and from JSON and is
 cheaper for humans and LLMs to read and write.
+
+Reach for it wherever you'd use JSON but a person or an LLM authors or reads the data — config
+files, fixtures, logs, and prompt/context payloads where the saved quotes and braces add up to
+real tokens. Because every RON document maps 1:1 to a JSON value, you can adopt it only at those
+edges (author or display RON, keep storing and transmitting JSON) without changing your data model.
 
 This library is a port of the reference Go implementation
 ([ron-go](https://github.com/starfederation/ron-go)) and passes the upstream conformance
