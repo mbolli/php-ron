@@ -92,15 +92,15 @@ against the Go reference ([ron-go](https://github.com/starfederation/ron-go), co
 
 | Conversion            | php-ron  | ron-go (Go) | vs ron-go    |
 | --------------------- | -------- | ----------- | ------------ |
-| JSON -> RON (compact) | ~19 MB/s | ~17 MB/s    | ~1.1x faster |
+| JSON -> RON (compact) | ~19 MB/s | ~17 MB/s    | ~on par      |
 | JSON -> RON (pretty)  | ~16 MB/s | ~17 MB/s    | ~on par      |
 | RON -> JSON (compact) | ~15 MB/s | ~81 MB/s    | ~5.7x slower |
 | canonical hash        | ~19 MB/s | —           |              |
 
-php-ron matches (slightly beats) the Go reference on JSON->RON: ron-go decodes JSON through Go's
-`encoding/json`, whereas php-ron uses a hand-rolled scanner. On RON->JSON, ron-go streams in
-near-zero-allocation compiled code and is ~5.7x faster — the realistic interpreter tax for that
-direction. A 1-10 KB payload still converts in well under a millisecond.
+php-ron is on par with the Go reference on JSON->RON (within benchmark noise): ron-go decodes JSON
+through Go's `encoding/json`, whereas php-ron uses a hand-rolled scanner. On RON->JSON, ron-go
+streams in near-zero-allocation compiled code and is ~5.7x faster — the realistic interpreter tax
+for that direction. A 1-10 KB payload still converts in well under a millisecond.
 
 Numbers are from one ~31 KB document on one machine; run `composer benchmark` (or
 `php bin/benchmark.php`) to reproduce locally.

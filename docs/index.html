@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>php-ron — JSON's value model, lighter syntax</title>
+  <meta name="description" content="A performance-focused PHP implementation of RON (Readable Object Notation): JSON's value model with lighter syntax, lossless JSON conversion, RFC 8785 canonicalization and XXH3-128 hashing. Built for humans and LLMs to read and write.">
+  <link rel="canonical" href="https://mbolli.github.io/php-ron/">
+  <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="php-ron — JSON's value model, lighter syntax">
+  <meta property="og:description" content="A performance-focused PHP implementation of RON: lossless JSON conversion, RFC 8785 canonicalization, XXH3-128 hashing. Built for humans and LLMs.">
+  <meta property="og:url" content="https://mbolli.github.io/php-ron/">
+  <meta property="og:image" content="https://mbolli.github.io/php-ron/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="php-ron — JSON's value model, lighter syntax">
+  <meta name="twitter:description" content="A performance-focused PHP implementation of RON: lossless JSON conversion, RFC 8785 canonicalization, XXH3-128 hashing.">
+  <meta name="twitter:image" content="https://mbolli.github.io/php-ron/og-image.png">
+
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./datastar.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site">
+  <span class="logo" aria-label="php-ron">php-<b>ron</b></span>
+  <nav aria-label="Primary">
+    <a href="#why">Why RON</a>
+    <a href="#start">Quick start</a>
+    <a href="#api">API</a>
+    <a href="#perf">Performance</a>
+    <a class="ghost" href="https://github.com/mbolli/php-ron">GitHub</a>
+  </nav>
+</header>
+
+<main id="main">
+
+  <!-- ───────────────────────── Hero ───────────────────────── -->
+  <section class="hero">
+    <h1>JSON's value model,<br><span class="grad">lighter syntax.</span></h1>
+    <p class="lede">
+      <strong>php-ron</strong> is a performance-focused PHP implementation of
+      <a href="https://github.com/starfederation/ron">RON (Readable Object Notation)</a>.
+      RON keeps JSON's value model but drops avoidable syntax: elided top-level braces,
+      bare strings, optional commas, and repeated-quote strings with no escapes. It converts
+      losslessly to and from JSON, so you can adopt it only where a person or an LLM reads or
+      writes the data.
+    </p>
+
+    <div class="cta">
+      <div class="install" data-copy="composer require mbolli/php-ron">
+        <code><span class="prompt">$</span> composer require mbolli/php-ron</code>
+        <button class="copy" type="button" aria-label="Copy install command"
+          data-on:click="navigator.clipboard.writeText(el.closest('[data-copy]').dataset.copy); el.classList.add('copied'); setTimeout(() => el.classList.remove('copied'), 1400)">Copy</button>
+      </div>
+      <div class="cta-links">
+        <a class="btn primary" href="https://github.com/mbolli/php-ron">View on GitHub</a>
+        <a class="btn" href="https://packagist.org/packages/mbolli/php-ron">Packagist</a>
+      </div>
+    </div>
+
+    <ul class="badges" aria-label="Project facts">
+      <li>PHP &ge; 8.1</li>
+      <li>MIT licensed</li>
+      <li>200 tests passing</li>
+      <li>PHPStan level 9</li>
+    </ul>
+  </section>
+
+  <!-- ───────────────────────── Why RON ───────────────────────── -->
+  <section id="why" class="why"
+           data-signals="{pgLive: false, pgHeight: 480}">
+    <h2>The same data, less ceremony</h2>
+    <p class="section-lede">
+      Every RON document maps 1:1 to a JSON value. Here is one config object in both. RON drops the
+      root braces, the key and string quotes, the colons and the commas. Every quote and brace you
+      save is a real byte, and for an LLM, a real token.
+    </p>
+
+    <div class="cmp" data-show="!$pgLive">
+      <figure class="cmp-col">
+        <figcaption>JSON <span class="meta">154 bytes</span></figcaption>
+<pre class="code" aria-label="JSON"><span class="hl-property">{</span>
+  <span class="hl-keyword">&quot;enabled&quot;</span>: true,
+  <span class="hl-keyword">&quot;fallback&quot;</span>: null,
+  <span class="hl-keyword">&quot;greeting&quot;</span>: <span class="hl-value">&quot;hello world&quot;</span>,
+  <span class="hl-keyword">&quot;limits&quot;</span>: <span class="hl-property">{</span>
+    <span class="hl-keyword">&quot;cpu&quot;</span>: <span class="hl-value">&quot;500m&quot;</span>,
+    <span class="hl-keyword">&quot;memory&quot;</span>: <span class="hl-value">&quot;256Mi&quot;</span>
+  <span class="hl-property">}</span>,
+  <span class="hl-keyword">&quot;name&quot;</span>: <span class="hl-value">&quot;web-server&quot;</span>,
+  <span class="hl-keyword">&quot;replicas&quot;</span>: 3,
+  <span class="hl-keyword">&quot;tags&quot;</span>: <span class="hl-property">[</span>
+    <span class="hl-value">&quot;prod&quot;</span>,
+    <span class="hl-value">&quot;edge&quot;</span>
+  <span class="hl-property">]</span>
+<span class="hl-property">}</span></pre>
+      </figure>
+
+      <figure class="cmp-col">
+        <figcaption>RON <span class="meta good">121 bytes &middot; 21% smaller</span></figcaption>
+<pre class="code" aria-label="RON"><span class="hl-keyword">enabled</span> <span class="hl-literal">true</span>
+<span class="hl-keyword">fallback</span> <span class="hl-literal">null</span>
+<span class="hl-keyword">greeting</span> <span class="hl-value">'hello world'</span>
+<span class="hl-keyword">limits</span> <span class="hl-property">{</span>
+  <span class="hl-keyword">cpu</span> <span class="hl-value">500m</span>
+  <span class="hl-keyword">memory</span> <span class="hl-value">256Mi</span>
+<span class="hl-property">}</span>
+<span class="hl-keyword">name</span> <span class="hl-value">web-server</span>
+<span class="hl-keyword">replicas</span> <span class="hl-number">3</span>
+<span class="hl-keyword">tags</span> <span class="hl-property">[</span><span class="hl-value">prod</span> <span class="hl-value">edge</span><span class="hl-property">]</span></pre>
+      </figure>
+    </div>
+
+    <!-- Live playground: replaces the static comparison above once its iframe loads.
+         Set the iframe `src` to the deployed php-via origin; with no/empty src nothing
+         loads, so the comparison stays. The iframe's load event sets $pgLive, which
+         hides .cmp (data-show) and reveals this; the height-handshake postMessage keeps
+         $pgHeight in sync. No loading="lazy" — a lazy iframe in a display:none section
+         never loads. -->
+    <div id="playground" class="playground"
+         data-class="{'is-live': $pgLive}"
+         data-on:message__window="evt.source === $pgFrame?.contentWindow && evt.data?.type === 'ron-playground:height' && ($pgHeight = evt.data.height)">
+      <div class="pg-frame">
+        <iframe data-ref="pgFrame" title="RON playground" referrerpolicy="no-referrer"
+                src="http://localhost:3099"
+                data-on:load="el.getAttribute('src') && ($pgLive = true)"
+                data-attr:style="'height:' + $pgHeight + 'px'"></iframe>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────────────────────── Features ───────────────────────── -->
+  <section id="features" class="features">
+    <h2>What you get</h2>
+    <ul class="grid">
+      <li>
+        <h3>Lossless round-trip</h3>
+        <p>Any RON document maps 1:1 to a JSON value and back. Author or display RON, keep storing
+          and transmitting JSON, without changing your data model.</p>
+      </li>
+      <li>
+        <h3>Reference parity</h3>
+        <p>A behavioral port of the Go reference
+          <a href="https://github.com/starfederation/ron-go">ron-go</a>, passing the upstream
+          conformance corpus byte for byte.</p>
+      </li>
+      <li>
+        <h3>RFC 8785 canonical JSON</h3>
+        <p>Built-in JCS canonicalization with deterministic key order, distinct from the
+          number-text-preserving compact renderer.</p>
+      </li>
+      <li>
+        <h3>Canonical XXH3-128 hashing</h3>
+        <p>Content-address any value: an unseeded XXH3-128 of the canonical RON bytes via native
+          <code>hash('xxh128')</code>, no extra dependency.</p>
+      </li>
+      <li>
+        <h3>Built for speed</h3>
+        <p>Hot paths scan bytes with native C functions, sort keys with <code>array_multisort</code>,
+          and stream RON&nbsp;&rarr;&nbsp;JSON without an intermediate tree.</p>
+      </li>
+      <li>
+        <h3>One small API</h3>
+        <p>A single static facade with <code>json_encode</code>-style ergonomics. Invalid input
+          throws <code>RonException</code>; depth is capped at 512.</p>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ───────────────────────── Quick start ───────────────────────── -->
+  <section id="start" class="start">
+    <h2>Quick start</h2>
+    <div class="codeblock" data-copy="use Mbolli\Ron\Ron;
+
+// Encode/decode arbitrary PHP values, like json_encode/json_decode
+Ron::encode(['name' =&gt; 'Ada', 'active' =&gt; true]); // active true\nname Ada\n
+Ron::decode(&quot;name Ada\nactive true&quot;);             // ['active' =&gt; true, 'name' =&gt; 'Ada']
+
+// RON -&gt; JSON (compact by default, canonical key order)
+Ron::toJson(&quot;name Ada\nactive true&quot;);          // {&quot;active&quot;:true,&quot;name&quot;:&quot;Ada&quot;}
+Ron::toJson($ron, pretty: true);                // multiline JSON
+
+// JSON -&gt; RON (pretty by default, canonical key order)
+Ron::fromJson('{&quot;name&quot;:&quot;Ada&quot;,&quot;active&quot;:true}'); // active true\nname Ada\n
+Ron::fromJson($json, pretty: false);            // compact RON
+
+// Canonical RON and its unseeded XXH3-128 hash, and RFC 8785 (JCS) JSON
+Ron::canonicalRon($json);
+Ron::canonicalHash($json);
+Ron::canonicalJson($json);">
+      <button class="copy" type="button" aria-label="Copy code"
+        data-on:click="navigator.clipboard.writeText(el.closest('[data-copy]').dataset.copy); el.classList.add('copied'); setTimeout(() => el.classList.remove('copied'), 1400)">Copy</button>
+<pre class="code"><span class="hl-keyword">use</span> <span class="hl-type">Mbolli\Ron\Ron</span>;
+
+<span class="hl-comment">// Encode/decode arbitrary PHP values, like json_encode/json_decode</span>
+<span class="hl-type">Ron</span>::<span class="hl-property">encode</span>([<span class="hl-value">'name'</span> =&gt; <span class="hl-value">'Ada'</span>, <span class="hl-value">'active'</span> =&gt; true]); <span class="hl-comment">// active true\nname Ada\n</span>
+<span class="hl-type">Ron</span>::<span class="hl-property">decode</span>(<span class="hl-value">&quot;name Ada\nactive true&quot;</span>);             <span class="hl-comment">// ['active' =&gt; true, 'name' =&gt; 'Ada']</span>
+
+<span class="hl-comment">// RON -&gt; JSON (compact by default, canonical key order)</span>
+<span class="hl-type">Ron</span>::<span class="hl-property">toJson</span>(<span class="hl-value">&quot;name Ada\nactive true&quot;</span>);          <span class="hl-comment">// {&quot;active&quot;:true,&quot;name&quot;:&quot;Ada&quot;}</span>
+<span class="hl-type">Ron</span>::<span class="hl-property">toJson</span>(<span class="hl-variable">$ron</span>, <span class="hl-property">pretty</span>: <span class="hl-keyword">true</span>);                <span class="hl-comment">// multiline JSON</span>
+
+<span class="hl-comment">// JSON -&gt; RON (pretty by default, canonical key order)</span>
+<span class="hl-type">Ron</span>::<span class="hl-property">fromJson</span>(<span class="hl-value">'{&quot;name&quot;:&quot;Ada&quot;,&quot;active&quot;:true}'</span>); <span class="hl-comment">// active true\nname Ada\n</span>
+<span class="hl-type">Ron</span>::<span class="hl-property">fromJson</span>(<span class="hl-variable">$json</span>, <span class="hl-property">pretty</span>: <span class="hl-keyword">false</span>);            <span class="hl-comment">// compact RON</span>
+
+<span class="hl-comment">// Canonical RON and its unseeded XXH3-128 hash, and RFC 8785 (JCS) JSON</span>
+<span class="hl-type">Ron</span>::<span class="hl-property">canonicalRon</span>(<span class="hl-variable">$json</span>);
+<span class="hl-type">Ron</span>::<span class="hl-property">canonicalHash</span>(<span class="hl-variable">$json</span>);
+<span class="hl-type">Ron</span>::<span class="hl-property">canonicalJson</span>(<span class="hl-variable">$json</span>);</pre>
+    </div>
+  </section>
+
+  <!-- ───────────────────────── API ───────────────────────── -->
+  <section id="api" class="api">
+    <h2>API reference</h2>
+    <p class="section-lede">Everything lives on the static facade <code>Mbolli\Ron\Ron</code>.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Method</th><th>Does</th></tr></thead>
+        <tbody>
+          <tr><td><code>toJson(string $ron, bool $pretty = false, bool $canonical = true)</code></td><td>RON to JSON (compact, canonical key order by default).</td></tr>
+          <tr><td><code>fromJson(string $json, bool $pretty = true, bool $canonical = true, ?callable $mapper = null)</code></td><td>JSON to RON (pretty by default); optional typed-value render hook.</td></tr>
+          <tr><td><code>encode(mixed $value, bool $pretty = true, bool $canonical = true)</code></td><td>Encode any PHP value as RON, like <code>json_encode</code>.</td></tr>
+          <tr><td><code>decode(string $ron, bool $associative = true)</code></td><td>Decode RON to a PHP value, like <code>json_decode</code>.</td></tr>
+          <tr><td><code>canonicalRon(string $json)</code></td><td>Compact, canonically-ordered RON (the canonical byte form).</td></tr>
+          <tr><td><code>canonicalHash(string $json)</code></td><td>Unseeded XXH3-128 of the canonical RON, 32 lowercase hex digits.</td></tr>
+          <tr><td><code>canonicalJson(string $json)</code></td><td>RFC 8785 (JCS) canonical JSON.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="footnote">Every method also accepts <code>int $maxDepth = 512</code>. Invalid input throws <code>Mbolli\Ron\RonException</code>.</p>
+  </section>
+
+  <!-- ───────────────────────── Performance ───────────────────────── -->
+  <section id="perf" class="perf">
+    <h2>Performance</h2>
+    <p class="section-lede">
+      Measured throughput (OPcache + JIT), flat and linear from ~1.5&nbsp;KB to ~320&nbsp;KB, on the
+      same input against the compiled Go reference. A 1&ndash;10&nbsp;KB payload converts in well
+      under a millisecond.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Conversion</th><th>php-ron</th><th>ron-go (Go)</th><th>vs ron-go</th></tr></thead>
+        <tbody>
+          <tr><td>JSON &rarr; RON (compact)</td><td>~19 MB/s</td><td>~17 MB/s</td><td>~on par</td></tr>
+          <tr><td>JSON &rarr; RON (pretty)</td><td>~16 MB/s</td><td>~17 MB/s</td><td>~on par</td></tr>
+          <tr><td>RON &rarr; JSON (compact)</td><td>~15 MB/s</td><td>~81 MB/s</td><td>~5.7&times; slower</td></tr>
+          <tr><td>canonical hash</td><td>~19 MB/s</td><td>&mdash;</td><td>&mdash;</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="footnote">
+      php-ron matches the Go reference on JSON&nbsp;&rarr;&nbsp;RON (ron-go decodes JSON through Go's
+      <code>encoding/json</code>; php-ron uses a hand-rolled scanner). On RON&nbsp;&rarr;&nbsp;JSON,
+      ron-go streams in near-zero-allocation compiled code: the realistic interpreter tax for that
+      direction. Numbers are from one ~31&nbsp;KB document on one machine; run
+      <code>composer benchmark</code> to reproduce.
+    </p>
+  </section>
+
+  <!-- ───────────────────────── Use cases ───────────────────────── -->
+  <section class="uses">
+    <h2>Reach for it where humans and LLMs meet your data</h2>
+    <ul class="chips">
+      <li>Config files</li>
+      <li>Test fixtures</li>
+      <li>Logs</li>
+      <li>LLM prompt &amp; context payloads</li>
+    </ul>
+  </section>
+
+</main>
+
+<footer class="site">
+  <div>
+    <span class="logo small">php-<b>ron</b></span>
+    <p>A behavioral port of <a href="https://github.com/starfederation/ron-go">ron-go</a>.
+       Live playground powered by <a href="https://via.zweiundeins.gmbh/">php-via</a>.</p>
+  </div>
+  <nav aria-label="Footer">
+    <a href="https://github.com/mbolli/php-ron">GitHub</a>
+    <a href="https://packagist.org/packages/mbolli/php-ron">Packagist</a>
+    <a href="https://github.com/starfederation/ron">RON spec</a>
+    <a href="https://github.com/starfederation/ron-go">ron-go</a>
+  </nav>
+  <small>MIT &copy; 2026 Michael Bolli</small>
+</footer>
+
+</body>
+</html>
