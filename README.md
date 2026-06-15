@@ -100,14 +100,20 @@ direction. A 1-10 KB payload still converts in well under a millisecond.
 Numbers are from one ~31 KB document on one machine; run `composer benchmark` (or
 `php bin/benchmark.php`) to reproduce locally.
 
+## Testing
+
+The suite runs against three pinned upstream corpora (each a git submodule): the official RON
+[conformance corpus](https://github.com/starfederation/ron) (exact RON <-> JSON byte matches plus
+canonical XXH3-128 hashes), its RFC 8785 corpus, and [nst/JSONTestSuite](https://github.com/nst/JSONTestSuite),
+whose every valid document is round-tripped through both `fromJson`/`toJson` and `encode`/`decode`
+to prove conversion is lossless. Static analysis runs at PHPStan level 9 with php-cs-fixer.
+
 ## Development
 
-The conformance fixtures live in a git submodule pinned to a known upstream commit.
-`composer install` initializes and updates it automatically (via a post-install hook), so:
+`composer install` initializes and updates the corpus submodules automatically (via a
+post-install hook), so the following is enough after cloning:
 
 ```bash
 composer install
-composer test
+composer test     # or: composer check  (lint + phpstan + test)
 ```
-
-is enough after cloning.
