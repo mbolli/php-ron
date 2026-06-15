@@ -31,6 +31,7 @@
   <nav aria-label="Primary">
     <a href="#why">Why RON</a>
     <a href="#start">Quick start</a>
+    <a href="#vocab">Vocabularies</a>
     <a href="#api">API</a>
     <a href="#perf">Performance</a>
     <a class="ghost" href="https://github.com/mbolli/php-ron">GitHub</a>
@@ -66,7 +67,7 @@
     <ul class="badges" aria-label="Project facts">
       <li>PHP &ge; 8.1</li>
       <li>MIT licensed</li>
-      <li>217 tests passing</li>
+      <li>258 tests passing</li>
       <li>PHPStan level 9</li>
     </ul>
   </section>
@@ -84,7 +85,7 @@
     <div class="cmp" data-show="!$pgLive">
       <figure class="cmp-col">
         <figcaption>JSON <span class="meta">154 bytes</span></figcaption>
-<pre class="code" aria-label="JSON"><span class="hl-property">{</span>
+<pre class="code" aria-label="JSON"><!-- build:why-json --><span class="hl-property">{</span>
   <span class="hl-keyword">&quot;enabled&quot;</span>: true,
   <span class="hl-keyword">&quot;fallback&quot;</span>: null,
   <span class="hl-keyword">&quot;greeting&quot;</span>: <span class="hl-value">&quot;hello world&quot;</span>,
@@ -98,12 +99,12 @@
     <span class="hl-value">&quot;prod&quot;</span>,
     <span class="hl-value">&quot;edge&quot;</span>
   <span class="hl-property">]</span>
-<span class="hl-property">}</span></pre>
+<span class="hl-property">}</span><!-- /build:why-json --></pre>
       </figure>
 
       <figure class="cmp-col">
         <figcaption>RON <span class="meta good">121 bytes &middot; 21% smaller</span></figcaption>
-<pre class="code" aria-label="RON"><span class="hl-keyword">enabled</span> <span class="hl-literal">true</span>
+<pre class="code" aria-label="RON"><!-- build:why-ron --><span class="hl-keyword">enabled</span> <span class="hl-literal">true</span>
 <span class="hl-keyword">fallback</span> <span class="hl-literal">null</span>
 <span class="hl-keyword">greeting</span> <span class="hl-value">'hello world'</span>
 <span class="hl-keyword">limits</span> <span class="hl-property">{</span>
@@ -112,7 +113,7 @@
 <span class="hl-property">}</span>
 <span class="hl-keyword">name</span> <span class="hl-value">web-server</span>
 <span class="hl-keyword">replicas</span> <span class="hl-number">3</span>
-<span class="hl-keyword">tags</span> <span class="hl-property">[</span><span class="hl-value">prod</span> <span class="hl-value">edge</span><span class="hl-property">]</span></pre>
+<span class="hl-keyword">tags</span> <span class="hl-property">[</span><span class="hl-value">prod</span> <span class="hl-value">edge</span><span class="hl-property">]</span><!-- /build:why-ron --></pre>
       </figure>
     </div>
 
@@ -157,6 +158,12 @@
         <h3>Canonical XXH3-128 hashing</h3>
         <p>Content-address any value: an unseeded XXH3-128 of the canonical RON bytes via native
           <code>hash('xxh128')</code>, no extra dependency.</p>
+      </li>
+      <li>
+        <h3>Typed vocabularies</h3>
+        <p>Render <code>{#utc ...}</code>-style typed values compactly and optionally validate their
+          payloads against the official vocabularies (core, time, network, math, spatial, color,
+          geo) &mdash; or register your own.</p>
       </li>
       <li>
         <h3>Built for speed</h3>
@@ -215,6 +222,146 @@ Ron::canonicalJson($json);">
     </div>
   </section>
 
+  <!-- ───────────────────────── Typed vocabularies ───────────────────────── -->
+  <section id="vocab" class="vocab">
+    <h2>Typed vocabularies</h2>
+    <p class="section-lede">
+      A typed value is a single-key object whose key starts with <code>#</code>. RON renders it
+      compactly, and php-ron can validate the payload against the official vocabularies &mdash;
+      <code>core</code> is on by default, the rest are opt-in, and you can register your own.
+      Unknown tags stay ordinary objects, so documents always round-trip.
+    </p>
+    <div class="split">
+      <figure class="vocab-col">
+        <figcaption>RON</figcaption>
+<pre class="code" aria-label="Typed values in RON"><!-- build:vocab-sample --><span class="hl-keyword">account</span> <span class="hl-property">{</span><span class="hl-keyword">#uid</span> <span class="hl-value">4f6e2a91-0c3d-4b7a-9f21-1a2b3c4d5e6f</span><span class="hl-property">}</span>
+<span class="hl-keyword">created</span> <span class="hl-property">{</span><span class="hl-keyword">#utc</span> <span class="hl-value">2026-06-13T00:00:00Z</span><span class="hl-property">}</span>
+<span class="hl-keyword">ttl</span> <span class="hl-property">{</span><span class="hl-keyword">#dur</span> <span class="hl-value">PT1H30M</span><span class="hl-property">}</span>
+<span class="hl-keyword">host</span> <span class="hl-property">{</span><span class="hl-keyword">#ip4</span> <span class="hl-value">192.0.2.1</span><span class="hl-property">}</span>
+<span class="hl-keyword">balance</span> <span class="hl-property">{</span><span class="hl-keyword">#dec</span> <span class="hl-value">'1234.56'</span><span class="hl-property">}</span>
+<span class="hl-keyword">score</span> <span class="hl-property">{</span><span class="hl-keyword">#f3v</span> <span class="hl-property">[</span><span class="hl-number">1.5</span> <span class="hl-number">2.5</span> <span class="hl-number">3.5</span><span class="hl-property">]</span><span class="hl-property">}</span>
+<span class="hl-keyword">location</span> <span class="hl-property">{</span><span class="hl-keyword">#lla</span> <span class="hl-property">[</span><span class="hl-number">-73.9857</span> <span class="hl-number">40.7484</span> <span class="hl-number">381</span><span class="hl-property">]</span><span class="hl-property">}</span>
+<span class="hl-keyword">accent</span> <span class="hl-property">{</span><span class="hl-keyword">#clr</span> <span class="hl-property">[</span><span class="hl-value">oklch</span> <span class="hl-number">0.7</span> <span class="hl-number">0.15</span> <span class="hl-number">230</span><span class="hl-property">]</span><span class="hl-property">}</span>
+<span class="hl-keyword">parent</span> <span class="hl-property">{</span><span class="hl-keyword">#</span> <span class="hl-number">300</span><span class="hl-property">}</span><!-- /build:vocab-sample --></pre>
+      </figure>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Vocabulary</th><th>Tags</th></tr></thead>
+          <tbody>
+            <tr><td><code>core</code></td><td><code>#uid #url #dec #b64 #sha256 # #tag</code></td></tr>
+            <tr><td><code>time</code></td><td><code>#utc #dur</code></td></tr>
+            <tr><td><code>network</code></td><td><code>#ip4 #ip6 #cdr</code></td></tr>
+            <tr><td><code>math</code></td><td><code>#i64 #u64 #f64 #ivN #vN #iv2&hellip;4 #f2v&hellip;4v #qat #eul #m2x #m3x #m4x</code></td></tr>
+            <tr><td><code>spatial</code></td><td><code>#lla #sph #cyl #bx2 #bx3 #spr #pln #ray #ln2 #ln3 #tri #fru #sh3 #vox</code></td></tr>
+            <tr><td><code>color</code></td><td><code>#clr</code></td></tr>
+            <tr><td><code>geo</code></td><td><code>#geo</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <h3>Custom vocabularies</h3>
+    <p class="section-lede">Register your own namespaced vocabulary &mdash; any payload shape, any
+      rule &mdash; and php-ron validates and renders its tags like a built-in. A validator returns
+      <code>true</code> to <strong>validate</strong> (accept), <code>false</code> to reject, or any
+      other value to <strong>transform</strong> the payload, like the built-in <code>#vox</code>. The
+      first example shows the full setup; the rest are tag&nbsp;&rarr;&nbsp;validator entries for the
+      same <code>register()</code> call. Expand any:</p>
+    <details class="recipe">
+      <summary><span class="label"><code>#com.acme/waypoint</code> &mdash; object payload <code>{lat, lng, label}</code>, full setup</span><span class="kind kind-validate">validate</span></summary>
+<pre class="code" aria-label="Custom vocabulary (PHP)"><!-- build:custom-vocab --><span class="hl-keyword">use</span> <span class="hl-type">Mbolli\Ron\Value\RonNumber</span>;
+<span class="hl-keyword">use</span> <span class="hl-type">Mbolli\Ron\Value\RonObject</span>;
+<span class="hl-keyword">use</span> <span class="hl-type">Mbolli\Ron\Vocabulary\VocabularyRegistry</span>;
+
+<span class="hl-variable">$registry</span> = <span class="hl-type">VocabularyRegistry</span>::<span class="hl-property">official</span>();
+
+<span class="hl-comment">// A validator returns true to accept, false to reject, or a value to transform.</span>
+<span class="hl-comment">// #com.acme/waypoint carries an object payload {lat, lng, label} with range checks.</span>
+<span class="hl-variable">$registry</span>-&gt;<span class="hl-property">register</span>(<span class="hl-value">'https://acme.example/vocab/geo/v1'</span>, [
+    <span class="hl-value">'#com.acme/waypoint'</span> =&gt; <span class="hl-keyword">function</span> (<span class="hl-injection"><span class="hl-type">mixed</span> $payload</span>): <span class="hl-type">bool</span> {
+        <span class="hl-keyword">if</span> (!<span class="hl-variable">$payload</span> <span class="hl-keyword">instanceof</span> <span class="hl-type">RonObject</span>) {
+            <span class="hl-keyword">return</span> <span class="hl-keyword">false</span>;
+        }
+        <span class="hl-variable">$field</span> = [];
+        <span class="hl-keyword">foreach</span> (<span class="hl-variable">$payload</span>-&gt;<span class="hl-property">members</span>() <span class="hl-keyword">as</span> [<span class="hl-variable">$key</span>, <span class="hl-variable">$value</span>]) {
+            <span class="hl-variable">$field</span>[<span class="hl-variable">$key</span>] = <span class="hl-variable">$value</span>;
+        }
+        <span class="hl-variable">$lat</span> = <span class="hl-variable">$field</span>[<span class="hl-value">'lat'</span>] ?? <span class="hl-keyword">null</span>;
+        <span class="hl-variable">$lng</span> = <span class="hl-variable">$field</span>[<span class="hl-value">'lng'</span>] ?? <span class="hl-keyword">null</span>;
+
+        <span class="hl-keyword">return</span> <span class="hl-variable">$lat</span> <span class="hl-keyword">instanceof</span> <span class="hl-type">RonNumber</span> <span class="hl-operator">&amp;&amp;</span> <span class="hl-property">abs</span>((<span class="hl-type">float</span>) <span class="hl-variable">$lat</span>-&gt;<span class="hl-property">text</span>) &lt;= 90
+            <span class="hl-operator">&amp;&amp;</span> <span class="hl-variable">$lng</span> <span class="hl-keyword">instanceof</span> <span class="hl-type">RonNumber</span> <span class="hl-operator">&amp;&amp;</span> <span class="hl-property">abs</span>((<span class="hl-type">float</span>) <span class="hl-variable">$lng</span>-&gt;<span class="hl-property">text</span>) &lt;= 180;
+    },
+]);
+
+<span class="hl-variable">$json</span> = <span class="hl-value">'{&quot;office&quot;:{&quot;#com.acme/waypoint&quot;:{&quot;lat&quot;:47.3769,&quot;lng&quot;:8.5417,&quot;label&quot;:&quot;HQ&quot;}}}'</span>;
+<span class="hl-type">Ron</span>::<span class="hl-property">fromJson</span>(<span class="hl-variable">$json</span>, <span class="hl-property">vocabularies</span>: [<span class="hl-value">'https://acme.example/vocab/geo/v1'</span>], <span class="hl-property">registry</span>: <span class="hl-variable">$registry</span>);
+<span class="hl-comment">// office {#com.acme/waypoint {label HQ lat 47.3769 lng 8.5417}}</span><!-- /build:custom-vocab --></pre>
+    </details>
+    <details class="recipe">
+      <summary><span class="label"><code>#com.acme/money</code> &mdash; money as <code>[currency, amount]</code></span><span class="kind kind-validate">validate</span></summary>
+<pre class="code" aria-label="Money vocabulary (PHP)"><!-- build:custom-money --><span class="hl-comment">// money as [currency, amount] -- returns true to accept, false to reject</span>
+<span class="hl-value">'#com.acme/money'</span> =&gt; <span class="hl-keyword">fn</span> (<span class="hl-injection"><span class="hl-type">mixed</span> $p</span>): <span class="hl-type">bool</span> =&gt; <span class="hl-property">is_array</span>(<span class="hl-variable">$p</span>) <span class="hl-operator">&amp;&amp;</span> <span class="hl-property">count</span>(<span class="hl-variable">$p</span>) === 2
+    <span class="hl-operator">&amp;&amp;</span> <span class="hl-property">is_string</span>(<span class="hl-variable">$p</span>[0]) <span class="hl-operator">&amp;&amp;</span> <span class="hl-property">preg_match</span>(<span class="hl-value">'/^[A-Z]{3}$/'</span>, <span class="hl-variable">$p</span>[0]) === 1
+    <span class="hl-operator">&amp;&amp;</span> <span class="hl-property">is_string</span>(<span class="hl-variable">$p</span>[1]) <span class="hl-operator">&amp;&amp;</span> <span class="hl-property">preg_match</span>(<span class="hl-value">'/^-?\d+(\.\d+)?$/'</span>, <span class="hl-variable">$p</span>[1]) === 1,
+
+<span class="hl-comment">// {&quot;price&quot;:{&quot;#com.acme/money&quot;:[&quot;EUR&quot;,&quot;19.99&quot;]}}  -&gt;  price {#com.acme/money [EUR '19.99']}</span><!-- /build:custom-money --></pre>
+    </details>
+    <details class="recipe">
+      <summary><span class="label"><code>#org.semver/version</code> &mdash; a SemVer&nbsp;2.0.0 string</span><span class="kind kind-validate">validate</span></summary>
+<pre class="code" aria-label="SemVer vocabulary (PHP)"><!-- build:custom-semver --><span class="hl-comment">// a SemVer 2.0.0 version string</span>
+<span class="hl-value">'#org.semver/version'</span> =&gt; <span class="hl-keyword">fn</span> (<span class="hl-injection"><span class="hl-type">mixed</span> $p</span>): <span class="hl-type">bool</span> =&gt; <span class="hl-property">is_string</span>(<span class="hl-variable">$p</span>)
+    <span class="hl-operator">&amp;&amp;</span> <span class="hl-property">preg_match</span>(<span class="hl-value">'/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$/'</span>, <span class="hl-variable">$p</span>) === 1,
+
+<span class="hl-comment">// {&quot;ron&quot;:{&quot;#org.semver/version&quot;:&quot;1.4.0-beta.2&quot;}}  -&gt;  ron {#org.semver/version 1.4.0-beta.2}</span><!-- /build:custom-semver --></pre>
+    </details>
+    <details class="recipe">
+      <summary><span class="label"><code>#com.acme/measure</code> &mdash; a measurement as <code>[value, unit]</code></span><span class="kind kind-validate">validate</span></summary>
+<pre class="code" aria-label="Measurement vocabulary (PHP)"><!-- build:custom-measure --><span class="hl-comment">// a measurement as [value, unit]</span>
+<span class="hl-value">'#com.acme/measure'</span> =&gt; <span class="hl-keyword">fn</span> (<span class="hl-injection"><span class="hl-type">mixed</span> $p</span>): <span class="hl-type">bool</span> =&gt; <span class="hl-property">is_array</span>(<span class="hl-variable">$p</span>) <span class="hl-operator">&amp;&amp;</span> <span class="hl-property">count</span>(<span class="hl-variable">$p</span>) === 2
+    <span class="hl-operator">&amp;&amp;</span> <span class="hl-variable">$p</span>[0] <span class="hl-keyword">instanceof</span> <span class="hl-type">RonNumber</span>
+    <span class="hl-operator">&amp;&amp;</span> <span class="hl-property">in_array</span>(<span class="hl-variable">$p</span>[1], [<span class="hl-value">'mm'</span>, <span class="hl-value">'cm'</span>, <span class="hl-value">'m'</span>, <span class="hl-value">'km'</span>, <span class="hl-value">'g'</span>, <span class="hl-value">'kg'</span>, <span class="hl-value">'s'</span>, <span class="hl-value">'ms'</span>], <span class="hl-keyword">true</span>),
+
+<span class="hl-comment">// {&quot;height&quot;:{&quot;#com.acme/measure&quot;:[1.83,&quot;m&quot;]}}  -&gt;  height {#com.acme/measure [1.83 m]}</span><!-- /build:custom-measure --></pre>
+    </details>
+    <details class="recipe">
+      <summary><span class="label"><code>#com.acme/matrix</code> &mdash; the three return modes: <code>false</code> / <code>true</code> / a reshaped payload</span><span class="kind kind-transform">transform</span></summary>
+<pre class="code" aria-label="Matrix vocabulary (PHP)"><!-- build:custom-matrix --><span class="hl-comment">// The three return modes: false rejects, true accepts as-is, any other value transforms.</span>
+<span class="hl-value">'#com.acme/matrix'</span> =&gt; <span class="hl-keyword">function</span> (<span class="hl-injection"><span class="hl-type">mixed</span> $payload</span>): <span class="hl-type">mixed</span> {
+    <span class="hl-keyword">if</span> (!<span class="hl-property">is_array</span>(<span class="hl-variable">$payload</span>)) {
+        <span class="hl-keyword">return</span> <span class="hl-keyword">false</span>;                                    <span class="hl-comment">// reject</span>
+    }
+    <span class="hl-keyword">if</span> (<span class="hl-variable">$payload</span> === []) {
+        <span class="hl-keyword">return</span> <span class="hl-keyword">true</span>;                                     <span class="hl-comment">// accept the payload unchanged</span>
+    }
+
+    <span class="hl-keyword">return</span> <span class="hl-keyword">new</span> <span class="hl-type">\Mbolli\Ron\Value\MultilineList</span>(<span class="hl-variable">$payload</span>); <span class="hl-comment">// transform: one row per line</span>
+},
+
+<span class="hl-comment">// {&quot;grid&quot;:{&quot;#com.acme/matrix&quot;:[]}}  -&gt;  grid {#com.acme/matrix []}</span>
+<span class="hl-comment">// {&quot;id&quot;:{&quot;#com.acme/matrix&quot;:[[1,0,0],[0,1,0],[0,0,1]]}}  -&gt;</span>
+<span class="hl-comment">// id {#com.acme/matrix [</span>
+<span class="hl-comment">//   [1 0 0]</span>
+<span class="hl-comment">//   [0 1 0]</span>
+<span class="hl-comment">//   [0 0 1]</span>
+<span class="hl-comment">// ]}</span><!-- /build:custom-matrix --></pre>
+    </details>
+    <details class="recipe">
+      <summary><span class="label"><code>#com.acme/flag</code> &mdash; transform to a literal <code>true</code>/<code>false</code> with <code>replace()</code></span><span class="kind kind-transform">transform</span></summary>
+<pre class="code" aria-label="Flag vocabulary (PHP)"><!-- build:custom-flag --><span class="hl-comment">// To transform a payload INTO a bool, wrap it in replace() -- a bare true/false</span>
+<span class="hl-comment">// return would be read as accept/reject instead of as the new payload.</span>
+<span class="hl-value">'#com.acme/flag'</span> =&gt; <span class="hl-keyword">fn</span> (<span class="hl-injection"><span class="hl-type">mixed</span> $p</span>): <span class="hl-type">mixed</span> =&gt; <span class="hl-property">is_string</span>(<span class="hl-variable">$p</span>)
+    <span class="hl-operator">?</span> <span class="hl-type">VocabularyRegistry</span>::<span class="hl-property">replace</span>(<span class="hl-property">in_array</span>(<span class="hl-variable">$p</span>, [<span class="hl-value">'on'</span>, <span class="hl-value">'yes'</span>, <span class="hl-value">'true'</span>], <span class="hl-keyword">true</span>))
+    : <span class="hl-keyword">false</span>,
+
+<span class="hl-comment">// {&quot;beta&quot;:{&quot;#com.acme/flag&quot;:&quot;on&quot;}}   -&gt;  beta {#com.acme/flag true}</span>
+<span class="hl-comment">// {&quot;beta&quot;:{&quot;#com.acme/flag&quot;:&quot;off&quot;}}  -&gt;  beta {#com.acme/flag false}</span><!-- /build:custom-flag --></pre>
+    </details>
+
+    <p class="footnote">Official URIs are <code>https://ron.dev/vocab/&lt;name&gt;/v1</code>. Custom
+      vocabularies use a reverse-DNS namespace, e.g. <code>#com.example/money</code>.</p>
+  </section>
+
   <!-- ───────────────────────── API ───────────────────────── -->
   <section id="api" class="api">
     <h2>API reference</h2>
@@ -223,13 +370,17 @@ Ron::canonicalJson($json);">
       <table>
         <thead><tr><th>Method</th><th>Does</th></tr></thead>
         <tbody>
-          <tr><td><code>toJson(string $ron, bool $pretty = false, bool $canonical = true)</code></td><td>RON to JSON (compact, canonical key order by default).</td></tr>
-          <tr><td><code>fromJson(string $json, bool $pretty = true, bool $canonical = true, ?callable $mapper = null)</code></td><td>JSON to RON (pretty by default); optional typed-value render hook.</td></tr>
-          <tr><td><code>encode(mixed $value, bool $pretty = true, bool $canonical = true)</code></td><td>Encode any PHP value as RON, like <code>json_encode</code>.</td></tr>
-          <tr><td><code>decode(string $ron, bool $associative = true)</code></td><td>Decode RON to a PHP value, like <code>json_decode</code>.</td></tr>
-          <tr><td><code>canonicalRon(string $json)</code></td><td>Compact, canonically-ordered RON (the canonical byte form).</td></tr>
-          <tr><td><code>canonicalHash(string $json)</code></td><td>Unseeded XXH3-128 of the canonical RON, 32 lowercase hex digits.</td></tr>
-          <tr><td><code>canonicalJson(string $json)</code></td><td>RFC 8785 (JCS) canonical JSON.</td></tr>
+          <!-- build:api-methods -->
+          <tr><td><code><span class="hl-property">toJson</span>(string <span class="hl-variable">$ron</span>, bool <span class="hl-variable">$pretty</span> = <span class="hl-keyword">false</span>, bool <span class="hl-variable">$canonical</span> = <span class="hl-keyword">true</span>)</code></td><td>RON to JSON (compact, canonical key order by default).</td></tr>
+          <tr><td><code><span class="hl-property">fromJson</span>(string <span class="hl-variable">$json</span>, bool <span class="hl-variable">$pretty</span> = <span class="hl-keyword">true</span>, bool <span class="hl-variable">$canonical</span> = <span class="hl-keyword">true</span>, ?<span class="hl-keyword">callable</span> <span class="hl-variable">$mapper</span> = <span class="hl-keyword">null</span>, array <span class="hl-variable">$vocabularies</span> = [<span class="hl-type">VocabularyRegistry</span>::<span class="hl-property">CORE_V1</span>], ?VocabularyRegistry <span class="hl-variable">$registry</span> = <span class="hl-keyword">null</span>)</code></td><td>JSON to RON (pretty by default); optional typed-value render hook and typed-vocabulary validation (core enabled by default).</td></tr>
+          <tr><td><code><span class="hl-property">encode</span>(mixed <span class="hl-variable">$value</span>, bool <span class="hl-variable">$pretty</span> = <span class="hl-keyword">true</span>, bool <span class="hl-variable">$canonical</span> = <span class="hl-keyword">true</span>)</code></td><td>Encode any PHP value as RON, like <code>json_encode</code>.</td></tr>
+          <tr><td><code><span class="hl-property">decode</span>(string <span class="hl-variable">$ron</span>, bool <span class="hl-variable">$associative</span> = <span class="hl-keyword">true</span>)</code></td><td>Decode RON to a PHP value, like <code>json_decode</code>.</td></tr>
+          <tr><td><code><span class="hl-property">canonicalRon</span>(string <span class="hl-variable">$json</span>)</code></td><td>Compact, canonically-ordered RON (the canonical byte form).</td></tr>
+          <tr><td><code><span class="hl-property">canonicalHash</span>(string <span class="hl-variable">$json</span>)</code></td><td>Unseeded XXH3-128 of the canonical RON, 32 lowercase hex digits.</td></tr>
+          <tr><td><code><span class="hl-property">canonicalJson</span>(string <span class="hl-variable">$json</span>)</code></td><td>RFC 8785 (JCS) canonical JSON.</td></tr>
+          <tr><td><code><span class="hl-property">validate</span>(string <span class="hl-variable">$json</span>, array <span class="hl-variable">$vocabularies</span> = [<span class="hl-type">VocabularyRegistry</span>::<span class="hl-property">CORE_V1</span>], ?VocabularyRegistry <span class="hl-variable">$registry</span> = <span class="hl-keyword">null</span>)</code></td><td>Validate typed payloads against the enabled vocabularies; throws on invalid.</td></tr>
+          <tr><td><code><span class="hl-property">tokenize</span>(string <span class="hl-variable">$ron</span>)</code></td><td>Lenient, role-aware token stream over RON source (powers this page's highlighting).</td></tr>
+          <!-- /build:api-methods -->
         </tbody>
       </table>
     </div>

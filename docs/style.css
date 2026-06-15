@@ -176,14 +176,15 @@ footer.site small { width: 100%; color: var(--muted); padding-top: .5rem; }
   overflow-x: auto;
   tab-size: 2;
 }
-.code .hl-comment  { color: var(--muted); font-style: italic; }
-.code .hl-keyword  { color: var(--hl-key); }
-.code .hl-type     { color: var(--hl-type); }
-.code .hl-value    { color: var(--hl-str); }
-.code .hl-number   { color: var(--hl-num); }
-.code .hl-literal  { color: var(--hl-lit); font-weight: 600; }
-.code .hl-property { color: var(--hl-punct); }
-.code .hl-variable { color: var(--text); }
+/* Highlight tokens (the hl-* classes are namespaced, so no scoping is needed). */
+.hl-comment  { color: var(--muted); font-style: italic; }
+.hl-keyword  { color: var(--hl-key); }
+.hl-type     { color: var(--hl-type); }
+.hl-value    { color: var(--hl-str); }
+.hl-number   { color: var(--hl-num); }
+.hl-literal  { color: var(--hl-lit); font-weight: 600; }
+.hl-property { color: var(--hl-punct); }
+.hl-variable { color: var(--text); }
 
 /* ── Comparison ── */
 .cmp {
@@ -225,6 +226,55 @@ footer.site small { width: 100%; color: var(--muted); padding-top: .5rem; }
   border-radius: var(--radius);
   background: var(--surface);
   display: block;
+}
+
+/* ── Typed vocabularies ── */
+.vocab { interpolate-size: allow-keywords; } /* enables block-size auto animation below */
+.vocab h3 { font-size: 1.15rem; margin: 2.25rem 0 .25rem; }
+.vocab .split {
+  display: grid; gap: 1rem;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+}
+@media (max-width: 720px) { .vocab .split { grid-template-columns: 1fr; } }
+.vocab-col { margin: 0; }
+.vocab-col figcaption {
+  font-family: var(--mono); font-size: .8rem; color: var(--muted); margin-bottom: .5rem;
+}
+.vocab .table-wrap code { font-family: var(--mono); font-size: .82em; word-break: break-word; }
+
+/* Custom-vocabulary recipes: collapsible <details>, animated open/close. */
+.recipe {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); margin-top: .6rem; overflow: hidden;
+}
+.recipe summary {
+  cursor: pointer; list-style: none;
+  display: flex; align-items: center; gap: .55rem;
+  padding: .6rem .9rem; font-size: .9rem; color: var(--muted);
+}
+.recipe summary::-webkit-details-marker { display: none; }
+.recipe summary code { font-family: var(--mono); color: var(--text); }
+.recipe summary .label { flex: 1; } /* fills the row so the badge sits hard right */
+.recipe summary .kind {
+  flex: none; font-size: .66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  padding: .12rem .45rem; border-radius: 100px;
+}
+.kind-validate { background: var(--surface-2); color: var(--muted); }
+.kind-transform { background: color-mix(in oklch, var(--accent) 22%, transparent); color: var(--accent); }
+.recipe summary::before {
+  content: ""; flex: none; width: .5rem; height: .5rem;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg); transition: transform .2s ease;
+}
+.recipe[open] summary::before { transform: rotate(45deg); }
+.recipe pre.code { border: 0; border-top: 1px solid var(--border); border-radius: 0; margin: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .recipe::details-content {
+    block-size: 0; overflow: clip;
+    transition: block-size .3s ease, content-visibility .3s allow-discrete;
+  }
+  .recipe[open]::details-content { block-size: auto; }
 }
 
 /* ── Features ── */
