@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Mbolli\Ron;
 
+use Mbolli\Ron\Value\RonToken;
+
 /**
  * Public facade for RON <-> JSON conversion.
  *
@@ -100,5 +102,19 @@ final class Ron {
     /** RFC 8785 (JCS) canonical JSON. Distinct from compact JSON: numbers are normalized. */
     public static function canonicalJson(string $json, int $maxDepth = self::DEFAULT_MAX_DEPTH): string {
         return Rfc8785::canonicalize($json, $maxDepth);
+    }
+
+    /**
+     * Role-aware token stream over RON source, for tooling such as syntax highlighters.
+     *
+     * Each token carries a byte source span (offset + length) and a lexical role; keys
+     * are reported separately from string values, so consumers need not re-derive RON's
+     * key/value context. Unlike toJson(), this is best-effort: malformed input never
+     * throws, it just yields tokens for as much of the input as could be classified.
+     *
+     * @return list<RonToken>
+     */
+    public static function tokenize(string $ron, int $maxDepth = self::DEFAULT_MAX_DEPTH): array {
+        return (new RonTokenizer($ron))->tokenize($maxDepth);
     }
 }
