@@ -65,7 +65,7 @@ $methods = [
     ['encode(mixed $value, bool $pretty = true, bool $canonical = true)', 'Encode any PHP value as RON, like <code>json_encode</code>.'],
     ['decode(string $ron, bool $associative = true)', 'Decode RON to a PHP value, like <code>json_decode</code>.'],
     ['canonicalRon(string $json)', 'Compact, canonically-ordered RON (the canonical byte form).'],
-    ['canonicalHash(string $json)', 'Unseeded XXH3-128 of the canonical RON, 32 lowercase hex digits.'],
+    ['canonicalHash(string $json)', 'SHA-256 of the canonical RON, 64 lowercase hex digits.'],
     ['canonicalJson(string $json)', 'RFC 8785 (JCS) canonical JSON.'],
     ['validate(string $json, array $vocabularies = [VocabularyRegistry::CORE_V1], ?VocabularyRegistry $registry = null)', 'Validate typed payloads against the enabled vocabularies; throws on invalid.'],
     ['tokenize(string $ron)', 'Lenient, role-aware token stream over RON source (powers this page\'s highlighting).'],

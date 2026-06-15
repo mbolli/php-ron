@@ -61,8 +61,8 @@ uses `array_multisort` (C sort, no per-comparison PHP callback).
 double serialization, rejects duplicate keys and lone surrogates — distinct from the number-text-
 preserving compact JSON renderer. `JsonString` is the shared JSON string escaper; `Utf8` decodes runes.
 
-`hash('xxh128', ...)` is byte-identical to the spec's "XXH3-128, seed 0" — the canonical hash needs
-no external library.
+The canonical hash is `hash('sha256', ...)` (64 lowercase hex), matching the spec's "SHA-256,
+lowercase hex" — no external library needed.
 
 Do **not** use `json_decode` on the JSON->RON path: it loses number text, coerces numeric keys to
 ints, and reorders duplicate keys. The hand-rolled `JsonParser` exists for exactly these reasons.
@@ -111,7 +111,7 @@ Fixtures are pinned git submodules under `tests/corpus/` (`ron` = upstream RON c
 `json` = nst/JSONTestSuite). `bin/init-submodules.php` fetches them on `composer install`.
 
 - Golden-file assertions (`ConformanceTest`, `Rfc8785Test`) are **exact byte** matches, incl.
-  XXH3-128 hashes. Pretty RON has a trailing newline; compact/pretty JSON do not.
+  SHA-256 hashes. Pretty RON has a trailing newline; compact/pretty JSON do not.
 - Round-trip / structural comparisons use the `ComparesJson` trait (recursive key-sort + strict
   compare). Do NOT use PHPUnit's `assertEqualsCanonicalizing` — it value-sorts arrays and scrambles
   associative arrays of mixed-type values.

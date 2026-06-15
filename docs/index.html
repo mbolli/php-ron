@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>php-ron — JSON's value model, lighter syntax</title>
-  <meta name="description" content="A performance-focused PHP implementation of RON (Readable Object Notation): JSON's value model with lighter syntax, lossless JSON conversion, RFC 8785 canonicalization and XXH3-128 hashing. Built for humans and LLMs to read and write.">
+  <meta name="description" content="A performance-focused PHP implementation of RON (Readable Object Notation): JSON's value model with lighter syntax, lossless JSON conversion, RFC 8785 canonicalization and SHA-256 hashing. Built for humans and LLMs to read and write.">
   <link rel="canonical" href="https://mbolli.github.io/php-ron/">
   <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
@@ -12,12 +12,12 @@
 
   <meta property="og:type" content="website">
   <meta property="og:title" content="php-ron — JSON's value model, lighter syntax">
-  <meta property="og:description" content="A performance-focused PHP implementation of RON: lossless JSON conversion, RFC 8785 canonicalization, XXH3-128 hashing. Built for humans and LLMs.">
+  <meta property="og:description" content="A performance-focused PHP implementation of RON: lossless JSON conversion, RFC 8785 canonicalization, SHA-256 hashing. Built for humans and LLMs.">
   <meta property="og:url" content="https://mbolli.github.io/php-ron/">
   <meta property="og:image" content="https://mbolli.github.io/php-ron/og-image.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="php-ron — JSON's value model, lighter syntax">
-  <meta name="twitter:description" content="A performance-focused PHP implementation of RON: lossless JSON conversion, RFC 8785 canonicalization, XXH3-128 hashing.">
+  <meta name="twitter:description" content="A performance-focused PHP implementation of RON: lossless JSON conversion, RFC 8785 canonicalization, SHA-256 hashing.">
   <meta name="twitter:image" content="https://mbolli.github.io/php-ron/og-image.png">
 
   <link rel="stylesheet" href="./style.css">
@@ -155,9 +155,9 @@
           number-text-preserving compact renderer.</p>
       </li>
       <li>
-        <h3>Canonical XXH3-128 hashing</h3>
-        <p>Content-address any value: an unseeded XXH3-128 of the canonical RON bytes via native
-          <code>hash('xxh128')</code>, no extra dependency.</p>
+        <h3>Canonical SHA-256 hashing</h3>
+        <p>Content-address any value: a SHA-256 of the canonical RON bytes via native
+          <code>hash('sha256')</code>, no extra dependency.</p>
       </li>
       <li>
         <h3>Typed vocabularies</h3>
@@ -195,7 +195,7 @@ Ron::toJson($ron, pretty: true);                // multiline JSON
 Ron::fromJson('{&quot;name&quot;:&quot;Ada&quot;,&quot;active&quot;:true}'); // active true\nname Ada\n
 Ron::fromJson($json, pretty: false);            // compact RON
 
-// Canonical RON and its unseeded XXH3-128 hash, and RFC 8785 (JCS) JSON
+// Canonical RON and its SHA-256 hash, and RFC 8785 (JCS) JSON
 Ron::canonicalRon($json);
 Ron::canonicalHash($json);
 Ron::canonicalJson($json);">
@@ -215,7 +215,7 @@ Ron::canonicalJson($json);">
 <span class="hl-type">Ron</span>::<span class="hl-property">fromJson</span>(<span class="hl-value">'{&quot;name&quot;:&quot;Ada&quot;,&quot;active&quot;:true}'</span>); <span class="hl-comment">// active true\nname Ada\n</span>
 <span class="hl-type">Ron</span>::<span class="hl-property">fromJson</span>(<span class="hl-variable">$json</span>, <span class="hl-property">pretty</span>: <span class="hl-keyword">false</span>);            <span class="hl-comment">// compact RON</span>
 
-<span class="hl-comment">// Canonical RON and its unseeded XXH3-128 hash, and RFC 8785 (JCS) JSON</span>
+<span class="hl-comment">// Canonical RON and its SHA-256 hash, and RFC 8785 (JCS) JSON</span>
 <span class="hl-type">Ron</span>::<span class="hl-property">canonicalRon</span>(<span class="hl-variable">$json</span>);
 <span class="hl-type">Ron</span>::<span class="hl-property">canonicalHash</span>(<span class="hl-variable">$json</span>);
 <span class="hl-type">Ron</span>::<span class="hl-property">canonicalJson</span>(<span class="hl-variable">$json</span>);</pre>
@@ -376,7 +376,7 @@ Ron::canonicalJson($json);">
           <tr><td><code><span class="hl-property">encode</span>(mixed <span class="hl-variable">$value</span>, bool <span class="hl-variable">$pretty</span> = <span class="hl-keyword">true</span>, bool <span class="hl-variable">$canonical</span> = <span class="hl-keyword">true</span>)</code></td><td>Encode any PHP value as RON, like <code>json_encode</code>.</td></tr>
           <tr><td><code><span class="hl-property">decode</span>(string <span class="hl-variable">$ron</span>, bool <span class="hl-variable">$associative</span> = <span class="hl-keyword">true</span>)</code></td><td>Decode RON to a PHP value, like <code>json_decode</code>.</td></tr>
           <tr><td><code><span class="hl-property">canonicalRon</span>(string <span class="hl-variable">$json</span>)</code></td><td>Compact, canonically-ordered RON (the canonical byte form).</td></tr>
-          <tr><td><code><span class="hl-property">canonicalHash</span>(string <span class="hl-variable">$json</span>)</code></td><td>Unseeded XXH3-128 of the canonical RON, 32 lowercase hex digits.</td></tr>
+          <tr><td><code><span class="hl-property">canonicalHash</span>(string <span class="hl-variable">$json</span>)</code></td><td>SHA-256 of the canonical RON, 64 lowercase hex digits.</td></tr>
           <tr><td><code><span class="hl-property">canonicalJson</span>(string <span class="hl-variable">$json</span>)</code></td><td>RFC 8785 (JCS) canonical JSON.</td></tr>
           <tr><td><code><span class="hl-property">validate</span>(string <span class="hl-variable">$json</span>, array <span class="hl-variable">$vocabularies</span> = [<span class="hl-type">VocabularyRegistry</span>::<span class="hl-property">CORE_V1</span>], ?VocabularyRegistry <span class="hl-variable">$registry</span> = <span class="hl-keyword">null</span>)</code></td><td>Validate typed payloads against the enabled vocabularies; throws on invalid.</td></tr>
           <tr><td><code><span class="hl-property">tokenize</span>(string <span class="hl-variable">$ron</span>)</code></td><td>Lenient, role-aware token stream over RON source (powers this page's highlighting).</td></tr>

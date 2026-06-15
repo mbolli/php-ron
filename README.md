@@ -25,7 +25,7 @@ corpus (`testdata/conformance`) and the RFC 8785 corpus (`testdata/rfc8785`).
 
 ## Requirements
 
-- PHP >= 8.1 (`ext-hash` for `xxh128`, `ext-mbstring`)
+- PHP >= 8.1 (`ext-hash` for `sha256`, `ext-mbstring`)
 
 ## Install
 
@@ -51,7 +51,7 @@ Ron::toJson($ron, pretty: true);                // multiline JSON
 Ron::fromJson('{"name":"Ada","active":true}'); // active true\nname Ada\n
 Ron::fromJson($json, pretty: false);            // compact RON
 
-// Canonical RON and its unseeded XXH3-128 hash (32 lowercase hex)
+// Canonical RON and its SHA-256 hash (64 lowercase hex)
 Ron::canonicalRon($json);
 Ron::canonicalHash($json);
 
@@ -123,7 +123,7 @@ vocabulary-tagged objects always round-trip losslessly.
 
 The hot paths scan bytes with native C functions (`strcspn`/`strpos`) instead of per-character
 PHP loops, sort object keys with `array_multisort` (no per-comparison PHP callback), and stream
-RON->JSON directly without an intermediate tree. The canonical hash uses native `hash('xxh128')`.
+RON->JSON directly without an intermediate tree. The canonical hash uses native `hash('sha256')`.
 
 Measured throughput (OPcache + JIT), flat and linear from ~1.5 KB to ~320 KB, on the same input
 against the Go reference ([ron-go](https://github.com/starfederation/ron-go), compiled):
@@ -147,7 +147,7 @@ Numbers are from one ~31 KB document on one machine; run `composer benchmark` (o
 
 The suite runs against three pinned upstream corpora (each a git submodule): the official RON
 [conformance corpus](https://github.com/starfederation/ron) (exact RON <-> JSON byte matches plus
-canonical XXH3-128 hashes, plus the typed-vocabulary fixtures for rendering and validation), its
+canonical SHA-256 hashes, plus the typed-vocabulary fixtures for rendering and validation), its
 RFC 8785 corpus, and [nst/JSONTestSuite](https://github.com/nst/JSONTestSuite), whose every valid
 document is round-tripped through both `fromJson`/`toJson` and `encode`/`decode` to prove conversion
 is lossless. Static analysis runs at PHPStan level 9 with php-cs-fixer.
