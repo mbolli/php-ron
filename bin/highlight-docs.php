@@ -17,8 +17,10 @@ declare(strict_types=1);
 $autoload = __DIR__ . '/../../tempest-highlight-ron/vendor/autoload.php';
 if (!is_file($autoload)) {
     fwrite(STDERR, "tempest-highlight-ron not found at {$autoload}\n");
+
     exit(1);
 }
+
 require $autoload;
 
 use Mbolli\TempestHighlightRon\RonLanguage;

@@ -14,7 +14,7 @@ use Mbolli\Ron\Value\RonToken;
  */
 final class Ron {
     /** Library version (semver). */
-    public const string VERSION = '0.1.0';
+    public const string VERSION = '0.1.1';
 
     /**
      * Default maximum nesting depth for the recursive parsers, mirroring
