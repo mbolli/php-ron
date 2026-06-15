@@ -17,14 +17,16 @@ final class RonToJson extends Scanner {
     private string $out = '';
     private bool $canonical = true;
     private string $indent = '';
+    private int $maxDepth = 512;
 
     public function __construct(string $src) {
         $this->src = $src;
         $this->len = \strlen($src);
     }
 
-    public function convert(bool $pretty, bool $canonical): string {
+    public function convert(bool $pretty, bool $canonical, int $maxDepth = 512): string {
         $this->canonical = $canonical;
+        $this->maxDepth = $maxDepth;
         $this->indent = $pretty ? '  ' : '';
         $this->out = '';
         $this->pos = 0;
@@ -92,7 +94,10 @@ final class RonToJson extends Scanner {
 
         switch ($this->src[$this->pos]) {
             case '{':
-                $this->pos++;
+                if ($depth >= $this->maxDepth) {
+                    throw RonException::at('maximum nesting depth exceeded', $this->pos);
+                }
+                ++$this->pos;
                 $object = new RonObject();
                 while (true) {
                     $this->skipWhitespace();
@@ -114,7 +119,10 @@ final class RonToJson extends Scanner {
                 // unreachable
                 // no break
             case '[':
-                $this->pos++;
+                if ($depth >= $this->maxDepth) {
+                    throw RonException::at('maximum nesting depth exceeded', $this->pos);
+                }
+                ++$this->pos;
                 $this->skipWhitespace();
                 if ($this->pos >= $this->len) {
                     throw RonException::at('expected ]', $this->pos);

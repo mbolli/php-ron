@@ -23,16 +23,18 @@ final class Rfc8785 {
     private string $src;
     private int $pos = 0;
     private int $len;
+    private int $maxDepth;
 
-    private function __construct(string $src) {
+    private function __construct(string $src, int $maxDepth) {
         $this->src = $src;
         $this->len = \strlen($src);
+        $this->maxDepth = $maxDepth;
     }
 
-    public static function canonicalize(string $src): string {
+    public static function canonicalize(string $src, int $maxDepth = 512): string {
         self::scanSurrogates($src);
-        $parser = new self($src);
-        $value = $parser->parseValue();
+        $parser = new self($src, $maxDepth);
+        $value = $parser->parseValue(0);
         $parser->skipWs();
         if ($parser->pos !== $parser->len) {
             throw RonException::at('unexpected trailing JSON', $parser->pos);
@@ -98,7 +100,7 @@ final class Rfc8785 {
         return (int) hexdec($hex);
     }
 
-    private function parseValue(): mixed {
+    private function parseValue(int $depth): mixed {
         $this->skipWs();
         if ($this->pos >= $this->len) {
             throw RonException::at('expected JSON value', $this->pos);
@@ -106,8 +108,8 @@ final class Rfc8785 {
         $c = $this->src[$this->pos];
 
         return match (true) {
-            $c === '{' => $this->parseObject(),
-            $c === '[' => $this->parseArray(),
+            $c === '{' => $this->parseObject($depth),
+            $c === '[' => $this->parseArray($depth),
             $c === '"' => $this->parseString(),
             $c === 't' => $this->parseLiteral('true', true),
             $c === 'f' => $this->parseLiteral('false', false),
@@ -117,7 +119,10 @@ final class Rfc8785 {
         };
     }
 
-    private function parseObject(): RonObject {
+    private function parseObject(int $depth): RonObject {
+        if ($depth >= $this->maxDepth) {
+            throw RonException::at('maximum nesting depth exceeded', $this->pos);
+        }
         ++$this->pos;
         $object = new RonObject();
         $seen = [];
@@ -144,7 +149,7 @@ final class Rfc8785 {
                 throw RonException::at('expected :', $this->pos);
             }
             ++$this->pos;
-            $object->set($key, $this->parseValue());
+            $object->set($key, $this->parseValue($depth + 1));
 
             $this->skipWs();
             if ($this->pos >= $this->len) {
@@ -167,7 +172,10 @@ final class Rfc8785 {
     }
 
     /** @return list<mixed> */
-    private function parseArray(): array {
+    private function parseArray(int $depth): array {
+        if ($depth >= $this->maxDepth) {
+            throw RonException::at('maximum nesting depth exceeded', $this->pos);
+        }
         ++$this->pos;
         $array = [];
         $this->skipWs();
@@ -178,7 +186,7 @@ final class Rfc8785 {
         }
 
         while (true) {
-            $array[] = $this->parseValue();
+            $array[] = $this->parseValue($depth + 1);
             $this->skipWs();
             if ($this->pos >= $this->len) {
                 throw RonException::at('expected , or ]', $this->pos);
@@ -344,6 +352,8 @@ final class Rfc8785 {
             . \chr(0x80 | ($cp & 0x3F));
     }
 
+    // Recurses over the parsed tree, whose depth parseValue() already bounded to
+    // maxDepth, so no separate depth guard is needed here.
     private static function write(mixed $value): string {
         if ($value === null) {
             return 'null';

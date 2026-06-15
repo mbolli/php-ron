@@ -30,19 +30,21 @@ final class JsonParser {
     private string $src;
     private int $pos = 0;
     private int $len;
+    private int $maxDepth;
 
     /** @var null|(\Closure(list<int|string>, mixed): array{0: mixed, 1: bool}) */
     private ?\Closure $mapper;
 
     /** @param null|Mapper $mapper */
-    public function __construct(string $src, ?callable $mapper = null) {
+    public function __construct(string $src, ?callable $mapper = null, int $maxDepth = 512) {
         $this->src = $src;
         $this->len = \strlen($src);
         $this->mapper = $mapper === null ? null : $mapper(...);
+        $this->maxDepth = $maxDepth;
     }
 
     public function parse(): mixed {
-        $value = $this->parseValue([]);
+        $value = $this->parseValue([], 0);
         $this->skipWs();
         if ($this->pos !== $this->len) {
             throw RonException::at('unexpected trailing JSON', $this->pos);
@@ -52,7 +54,7 @@ final class JsonParser {
     }
 
     /** @param list<int|string> $path */
-    private function parseValue(array $path): mixed {
+    private function parseValue(array $path, int $depth): mixed {
         $this->skipWs();
         if ($this->pos >= $this->len) {
             throw RonException::at('expected JSON value', $this->pos);
@@ -60,8 +62,8 @@ final class JsonParser {
 
         $c = $this->src[$this->pos];
         $value = match (true) {
-            $c === '{' => $this->parseObject($path),
-            $c === '[' => $this->parseArray($path),
+            $c === '{' => $this->parseObject($path, $depth),
+            $c === '[' => $this->parseArray($path, $depth),
             $c === '"' => $this->parseString(),
             $c === 't' => $this->parseLiteral('true', true),
             $c === 'f' => $this->parseLiteral('false', false),
@@ -74,7 +76,10 @@ final class JsonParser {
     }
 
     /** @param list<int|string> $path */
-    private function parseObject(array $path): RonObject {
+    private function parseObject(array $path, int $depth): RonObject {
+        if ($depth >= $this->maxDepth) {
+            throw RonException::at('maximum nesting depth exceeded', $this->pos);
+        }
         ++$this->pos;
         $object = new RonObject();
         $this->skipWs();
@@ -100,6 +105,7 @@ final class JsonParser {
             // Path tracking is only needed to feed the mapper; skip the array copy otherwise.
             $object->set($key, $this->parseValue(
                 $this->mapper === null ? $path : [...$path, $key],
+                $depth + 1,
             ));
 
             $this->skipWs();
@@ -127,7 +133,10 @@ final class JsonParser {
      *
      * @return list<mixed>
      */
-    private function parseArray(array $path): array {
+    private function parseArray(array $path, int $depth): array {
+        if ($depth >= $this->maxDepth) {
+            throw RonException::at('maximum nesting depth exceeded', $this->pos);
+        }
         ++$this->pos;
         $array = [];
         $this->skipWs();
@@ -140,6 +149,7 @@ final class JsonParser {
         while (true) {
             $array[] = $this->parseValue(
                 $this->mapper === null ? $path : [...$path, \count($array)],
+                $depth + 1,
             );
 
             $this->skipWs();

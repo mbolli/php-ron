@@ -12,8 +12,12 @@ use Mbolli\Ron\Value\RonObject;
  *
  * Handles both pretty and compact output, canonical key ordering, root-object
  * elision, and the inline-when-small heuristic (<= 80 bytes). Methods return
- * strings rather than writing to a shared buffer so size estimation (renderScalar)
- * can reuse the same code paths, mirroring the Go reference.
+ * strings rather than writing to a shared buffer so the inline() size/eligibility
+ * pass can reuse the same code paths, mirroring the Go reference.
+ *
+ * No depth guard here by design: the only inputs are value models produced by
+ * JsonParser (bounded to maxDepth) or Encoder (bounded to its own depth limit),
+ * so this renderer can never receive an over-deep tree.
  */
 final class RonRenderer {
     /** ASCII structural delimiters: { } [ ] " ' , space tab LF CR. */
@@ -89,13 +93,9 @@ final class RonRenderer {
         if ($members === []) {
             return '{}';
         }
-        if ($this->shouldInlineObject($members)) {
-            $out = '{';
-            foreach ($members as [$key, $value]) {
-                $out .= self::renderString($key, true) . ' ' . $this->writeValue($value, $indent, $depth);
-            }
-
-            return $out . '}';
+        $inline = $this->inline($object);
+        if ($inline !== null) {
+            return $inline;
         }
 
         return "{\n" . $this->writeObjectMembers($members, $indent, $depth)
@@ -123,18 +123,9 @@ final class RonRenderer {
         if ($array === []) {
             return '[]';
         }
-        if ($this->shouldInlineArray($array)) {
-            $out = '[';
-            $first = true;
-            foreach ($array as $value) {
-                if (!$first) {
-                    $out .= ' ';
-                }
-                $first = false;
-                $out .= $this->writeValue($value, $indent, $depth);
-            }
-
-            return $out . ']';
+        $inline = $this->inline($array);
+        if ($inline !== null) {
+            return $inline;
         }
 
         $out = "[\n";
@@ -219,54 +210,73 @@ final class RonRenderer {
         return $top ? $out : $out . '}';
     }
 
-    /** @param list<array{0: string, 1: mixed}> $members */
-    private function shouldInlineObject(array $members): bool {
-        if (\count($members) !== 1) {
-            return false;
+    /**
+     * Inline rendering of a value when the whole subtree is inline-eligible and
+     * fits within INLINE_LIMIT bytes; null otherwise.
+     *
+     * Single bottom-up pass that bails as soon as the running length exceeds the
+     * limit, so each call is O(INLINE_LIMIT) and the full render stays linear. The
+     * previous split of canInline() + renderScalar() walked each subtree twice per
+     * ancestor, which was exponential (~2.6^depth) for deep inline-eligible input.
+     * The returned string is byte-identical to the old inline branches, and a null
+     * result reproduces shouldInline*() returning false (an empty object is not
+     * inline-eligible; an empty array renders inline as "[]").
+     */
+    private function inline(mixed $value): ?string {
+        if ($value === null) {
+            return 'null';
         }
-        $size = 2;
-        foreach ($members as [$key, $value]) {
-            if (!$this->canInline($value)) {
-                return false;
-            }
-            $size += \strlen(self::renderString($key, true)) + 1 + \strlen($this->renderScalar($value));
+        if ($value === true) {
+            return 'true';
         }
-
-        return $size <= self::INLINE_LIMIT;
-    }
-
-    /** @param array<array-key, mixed> $array */
-    private function shouldInlineArray(array $array): bool {
-        $size = 2;
-        $first = true;
-        foreach ($array as $value) {
-            if (!$this->canInline($value)) {
-                return false;
-            }
-            if (!$first) {
-                ++$size;
-            }
-            $first = false;
-            $size += \strlen($this->renderScalar($value));
+        if ($value === false) {
+            return 'false';
         }
-
-        return $size <= self::INLINE_LIMIT;
-    }
-
-    private function canInline(mixed $value): bool {
+        if (\is_string($value)) {
+            return self::renderString($value, false);
+        }
+        if ($value instanceof RonNumber) {
+            return $value->text;
+        }
         if ($value instanceof RonObject) {
-            return $this->shouldInlineObject($this->members($value));
+            $members = $this->members($value);
+            if (\count($members) !== 1) {
+                return null;
+            }
+            [$key, $child] = $members[0];
+            $rendered = $this->inline($child);
+            if ($rendered === null) {
+                return null;
+            }
+            $out = '{' . self::renderString($key, true) . ' ' . $rendered . '}';
+
+            return \strlen($out) <= self::INLINE_LIMIT ? $out : null;
         }
         if (\is_array($value)) {
-            return $this->shouldInlineArray($value);
+            if ($value === []) {
+                return '[]';
+            }
+            $out = '[';
+            $first = true;
+            foreach ($value as $child) {
+                $rendered = $this->inline($child);
+                if ($rendered === null) {
+                    return null;
+                }
+                if (!$first) {
+                    $out .= ' ';
+                }
+                $first = false;
+                $out .= $rendered;
+                if (\strlen($out) > self::INLINE_LIMIT) {
+                    return null; // can only grow from here
+                }
+            }
+
+            return \strlen($out) + 1 <= self::INLINE_LIMIT ? $out . ']' : null;
         }
 
-        return true; // null, bool, string, RonNumber
-    }
-
-    /** Inline rendering of a value, used only for size estimation. */
-    private function renderScalar(mixed $value): string {
-        return $this->writeValue($value, '', 0);
+        throw new RonException('ron: unsupported value type');
     }
 
     /**
