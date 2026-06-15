@@ -116,19 +116,18 @@
       </figure>
     </div>
 
-    <!-- Live playground: replaces the static comparison above once its iframe loads.
-         Set the iframe `src` to the deployed php-via origin; with no/empty src nothing
-         loads, so the comparison stays. The iframe's load event sets $pgLive, which
-         hides .cmp (data-show) and reveals this; the height-handshake postMessage keeps
-         $pgHeight in sync. No loading="lazy" — a lazy iframe in a display:none section
-         never loads. -->
+    <!-- Live playground: replaces the static comparison above once it confirms itself.
+         The iframe is kept rendered but collapsed (CSS) so it can load and post its
+         height handshake even while hidden; reveal is gated on that handshake. A
+         non-playground response (error page, unreachable/undeployed domain) never posts
+         it, so the comparison simply stays. Set `src` to the deployed php-via origin.
+         No loading="lazy" — a lazy hidden iframe would never load. -->
     <div id="playground" class="playground"
          data-class="{'is-live': $pgLive}"
-         data-on:message__window="evt.source === $pgFrame?.contentWindow && evt.data?.type === 'ron-playground:height' && ($pgHeight = evt.data.height)">
+         data-on:message__window="evt.source === $pgFrame?.contentWindow && evt.data?.type === 'ron-playground:height' && ($pgLive = true, $pgHeight = evt.data.height)">
       <div class="pg-frame">
         <iframe data-ref="pgFrame" title="RON playground" referrerpolicy="no-referrer"
                 src="https://play-ron.zweiundeins.gmbh"
-                data-on:load="el.getAttribute('src') && ($pgLive = true)"
                 data-attr:style="'height:' + $pgHeight + 'px'"></iframe>
       </div>
     </div>

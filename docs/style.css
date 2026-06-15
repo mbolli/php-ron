@@ -201,10 +201,20 @@ footer.site small { width: 100%; color: var(--muted); padding-top: .5rem; }
 .cmp-col .meta { font-size: .75rem; }
 .cmp-col .meta.good { color: var(--good); }
 
-/* ── Playground (swapped in for .cmp once Datastar sets .is-live) ── */
-.playground { display: none; }
+/* ── Playground (swapped in for .cmp once Datastar sets .is-live) ──
+   Kept rendered but collapsed (not display:none) so the iframe still loads and can
+   post its height handshake while hidden; revealed only once that handshake confirms
+   the real playground. A display:none iframe can't measure its height, so it could
+   never post. */
+.playground {
+  visibility: hidden;
+  max-height: 0;
+  overflow: hidden;
+}
 .playground.is-live {
-  display: block;
+  visibility: visible;
+  max-height: none;
+  overflow: visible;
   animation: rise .4s ease both;
 }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
