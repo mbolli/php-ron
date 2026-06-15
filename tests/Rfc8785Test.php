@@ -26,7 +26,7 @@ final class Rfc8785Test extends TestCase {
             bin2hex($canonical),
             'canonical UTF-8 hex',
         );
-        self::assertSame($case['expectedCanonicalJSONXXH3'], hash('xxh128', $canonical), 'canonical JSON XXH3-128');
+        self::assertSame($case['expectedCanonicalJSONSHA256'], hash('sha256', $canonical), 'canonical JSON SHA-256');
     }
 
     /** @return iterable<string, array{0: array<string, mixed>}> */

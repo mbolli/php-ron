@@ -52,11 +52,11 @@ final class ConformanceTest extends TestCase {
             self::assertSame(self::read($case['expectedCompactRON']), $compactRon, 'compact RON');
             self::assertJsonStructure($jsonInput, Ron::toJson($compactRon), 'compact RON round-trip');
 
-            if (isset($case['expectedCanonicalRONXXH3'])) {
+            if (isset($case['expectedCanonicalRONSHA256'])) {
                 self::assertSame(
-                    $case['expectedCanonicalRONXXH3'],
-                    hash('xxh128', $compactRon),
-                    'canonical RON XXH3-128',
+                    $case['expectedCanonicalRONSHA256'],
+                    hash('sha256', $compactRon),
+                    'canonical RON SHA-256',
                 );
             }
         }

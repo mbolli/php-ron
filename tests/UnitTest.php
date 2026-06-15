@@ -108,7 +108,7 @@ final class UnitTest extends TestCase {
 
     public function testCanonicalHashMatchesManualHash(): void {
         $json = '{"b":2,"a":1}';
-        self::assertSame(hash('xxh128', Ron::canonicalRon($json)), Ron::canonicalHash($json));
+        self::assertSame(hash('sha256', Ron::canonicalRon($json)), Ron::canonicalHash($json));
     }
 
     public function testCoreVocabularyValidatesByDefault(): void {

@@ -139,7 +139,7 @@ final class Ron {
     }
 
     /**
-     * Unseeded XXH3-128 of the canonical RON bytes, as 32 lowercase hex digits.
+     * SHA-256 of the canonical RON bytes, as 64 lowercase hex digits.
      *
      * @param list<string> $vocabularies enabled typed vocabulary URIs
      */
@@ -149,7 +149,7 @@ final class Ron {
         array $vocabularies = self::DEFAULT_VOCABULARIES,
         ?VocabularyRegistry $registry = null,
     ): string {
-        return hash('xxh128', self::canonicalRon($json, $maxDepth, $vocabularies, $registry));
+        return hash('sha256', self::canonicalRon($json, $maxDepth, $vocabularies, $registry));
     }
 
     /** RFC 8785 (JCS) canonical JSON. Distinct from compact JSON: numbers are normalized. */
