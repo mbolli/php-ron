@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Mbolli\Ron;
 
+use Mbolli\Ron\Value\MultilineList;
 use Mbolli\Ron\Value\RonNumber;
 use Mbolli\Ron\Value\RonObject;
 
@@ -11,9 +12,11 @@ use Mbolli\Ron\Value\RonObject;
  * Value-model -> RON renderer (port of ron-go's render.go).
  *
  * Handles both pretty and compact output, canonical key ordering, root-object
- * elision, and the inline-when-small heuristic (<= 80 bytes). Methods return
- * strings rather than writing to a shared buffer so the inline() size/eligibility
- * pass can reuse the same code paths, mirroring the Go reference.
+ * elision, the inline-when-small heuristic (<= 80 bytes), and typed-value
+ * collapsing (a single '#'-prefixed key renders as `{#tag payload}` with the
+ * wrapper transparent to indentation). Methods return strings rather than writing
+ * to a shared buffer so the inline() size/eligibility pass can reuse the same code
+ * paths, mirroring the Go reference.
  *
  * No depth guard here by design: the only inputs are value models produced by
  * JsonParser (bounded to maxDepth) or Encoder (bounded to its own depth limit),
@@ -81,6 +84,9 @@ final class RonRenderer {
         if ($value instanceof RonObject) {
             return $this->writeObject($value, $indent, $depth);
         }
+        if ($value instanceof MultilineList) {
+            return $this->writeArrayBody($value->items, $indent, $depth);
+        }
         if (\is_array($value)) {
             return $this->writeArray($value, $indent, $depth);
         }
@@ -93,6 +99,11 @@ final class RonRenderer {
         if ($members === []) {
             return '{}';
         }
+        // A single '#'-prefixed key is a typed value: collapse the wrapper so the
+        // payload sits beside the tag (e.g. `{#vox {`) instead of nesting a level.
+        if (\count($members) === 1 && $members[0][0] !== '' && $members[0][0][0] === '#') {
+            return $this->writeTaggedObject($members[0][0], $members[0][1], $indent, $depth);
+        }
         $inline = $this->inline($object);
         if ($inline !== null) {
             return $inline;
@@ -100,6 +111,22 @@ final class RonRenderer {
 
         return "{\n" . $this->writeObjectMembers($members, $indent, $depth)
             . "\n" . str_repeat($indent, $depth) . '}';
+    }
+
+    /**
+     * Renders a typed value `{#tag payload}`. Inlines when the whole form fits the
+     * byte budget (payload may be a multi-key object/array, unlike a base object);
+     * otherwise the payload renders at the tag's own depth so the wrapper is
+     * transparent to indentation and the closing braces collapse (`}}`).
+     */
+    private function writeTaggedObject(string $key, mixed $payload, string $indent, int $depth): string {
+        $renderedKey = self::renderString($key, true);
+        $inlinePayload = $this->inline($payload, true);
+        if ($inlinePayload !== null && \strlen($inlinePayload) + \strlen($renderedKey) + 3 <= self::INLINE_LIMIT) {
+            return '{' . $renderedKey . ' ' . $inlinePayload . '}';
+        }
+
+        return '{' . $renderedKey . ' ' . $this->writeValue($payload, $indent, $depth) . '}';
     }
 
     /** @param list<array{0: string, 1: mixed}> $members */
@@ -128,6 +155,19 @@ final class RonRenderer {
             return $inline;
         }
 
+        return $this->writeArrayBody($array, $indent, $depth);
+    }
+
+    /**
+     * Renders an array one element per line, with no inline pass. Used both as the
+     * multiline fallback for ordinary arrays and as the only form for MultilineList.
+     *
+     * @param array<array-key, mixed> $array
+     */
+    private function writeArrayBody(array $array, string $indent, int $depth): string {
+        if ($array === []) {
+            return '[]';
+        }
         $out = "[\n";
         $count = \count($array);
         $inner = str_repeat($indent, $depth + 1);
@@ -157,6 +197,9 @@ final class RonRenderer {
         }
         if ($value instanceof RonNumber) {
             return $value->text;
+        }
+        if ($value instanceof MultilineList) {
+            $value = $value->items; // compact output has no multiline form
         }
         if (\is_array($value)) {
             $out = '[';
@@ -222,7 +265,7 @@ final class RonRenderer {
      * result reproduces shouldInline*() returning false (an empty object is not
      * inline-eligible; an empty array renders inline as "[]").
      */
-    private function inline(mixed $value): ?string {
+    private function inline(mixed $value, bool $allowMultiKey = false): ?string {
         if ($value === null) {
             return 'null';
         }
@@ -238,19 +281,50 @@ final class RonRenderer {
         if ($value instanceof RonNumber) {
             return $value->text;
         }
+        if ($value instanceof MultilineList) {
+            return null; // forced multiline: never inline, and pull ancestors multiline too
+        }
         if ($value instanceof RonObject) {
             $members = $this->members($value);
-            if (\count($members) !== 1) {
+            $n = \count($members);
+            if ($n === 0) {
                 return null;
             }
-            [$key, $child] = $members[0];
-            $rendered = $this->inline($child);
-            if ($rendered === null) {
-                return null;
-            }
-            $out = '{' . self::renderString($key, true) . ' ' . $rendered . '}';
+            // Typed value: a single '#'-prefixed key. Its payload inlines with
+            // multi-key objects allowed, and the wrapper imposes no key-count limit.
+            if ($n === 1 && $members[0][0] !== '' && $members[0][0][0] === '#') {
+                [$key, $child] = $members[0];
+                $rendered = $this->inline($child, true);
+                if ($rendered === null) {
+                    return null;
+                }
+                $out = '{' . self::renderString($key, true) . ' ' . $rendered . '}';
 
-            return \strlen($out) <= self::INLINE_LIMIT ? $out : null;
+                return \strlen($out) <= self::INLINE_LIMIT ? $out : null;
+            }
+            // Base objects inline only when single-keyed; typed payloads ($allowMultiKey)
+            // lift that restriction for every object nested inside them.
+            if (!$allowMultiKey && $n !== 1) {
+                return null;
+            }
+            $out = '{';
+            $first = true;
+            foreach ($members as [$key, $child]) {
+                $rendered = $this->inline($child, $allowMultiKey);
+                if ($rendered === null) {
+                    return null;
+                }
+                if (!$first) {
+                    $out .= ' ';
+                }
+                $first = false;
+                $out .= self::renderString($key, true) . ' ' . $rendered;
+                if (\strlen($out) > self::INLINE_LIMIT) {
+                    return null;
+                }
+            }
+
+            return \strlen($out) + 1 <= self::INLINE_LIMIT ? $out . '}' : null;
         }
         if (\is_array($value)) {
             if ($value === []) {
@@ -259,7 +333,7 @@ final class RonRenderer {
             $out = '[';
             $first = true;
             foreach ($value as $child) {
-                $rendered = $this->inline($child);
+                $rendered = $this->inline($child, $allowMultiKey);
                 if ($rendered === null) {
                     return null;
                 }
