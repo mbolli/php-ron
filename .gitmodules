@@ -1,0 +1,3 @@
+[submodule "tests/corpus/ron"]
+	path = tests/corpus/ron
+	url = https://github.com/starfederation/ron
