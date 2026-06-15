@@ -4,6 +4,15 @@ All notable changes to this project are documented here. This project adheres to
 [Semantic Versioning](https://semver.org) and the
 [Keep a Changelog](https://keepachangelog.com) format.
 
+## [0.3.0] - 2026-06-15
+
+### Changed
+
+- **Breaking:** the canonical hash is now SHA-256 instead of unseeded XXH3-128. `Ron::canonicalHash`
+  returns 64 lowercase hex digits (was 32), computed as `hash('sha256', ...)` of the canonical RON
+  bytes. This matches upstream RON ([PR #16](https://github.com/starfederation/ron/pull/16)); any
+  consumer storing or comparing previously-produced hashes must recompute them.
+
 ## [0.2.0] - 2026-06-15
 
 ### Added
