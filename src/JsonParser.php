@@ -51,32 +51,6 @@ final class JsonParser {
         return $value;
     }
 
-    /** Convert a plain PHP value returned by a hook into the value model. */
-    public static function normalize(mixed $v): mixed {
-        if ($v instanceof RonObject || $v instanceof RonNumber) {
-            return $v;
-        }
-        if (\is_array($v)) {
-            if (array_is_list($v)) {
-                return array_map(self::normalize(...), $v);
-            }
-            $object = new RonObject();
-            foreach ($v as $key => $child) {
-                $object->set((string) $key, self::normalize($child));
-            }
-
-            return $object;
-        }
-        if (\is_int($v)) {
-            return new RonNumber((string) $v);
-        }
-        if (\is_float($v)) {
-            return new RonNumber(self::floatText($v));
-        }
-
-        return $v;
-    }
-
     /** @param list<int|string> $path */
     private function parseValue(array $path): mixed {
         $this->skipWs();
@@ -369,21 +343,7 @@ final class JsonParser {
         }
         [$replacement, $replaced] = ($this->mapper)($path, $value);
 
-        return $replaced ? self::normalize($replacement) : $value;
-    }
-
-    private static function floatText(float $v): string {
-        if (is_nan($v) || is_infinite($v)) {
-            return '0';
-        }
-        for ($p = 1; $p <= 17; ++$p) {
-            $s = \sprintf('%.' . $p . 'g', $v);
-            if ((float) $s === $v) {
-                return $s;
-            }
-        }
-
-        return \sprintf('%.17g', $v);
+        return $replaced ? Encoder::toModel($replacement) : $value;
     }
 
     private function skipWs(): void {

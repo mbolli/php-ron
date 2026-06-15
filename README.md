@@ -32,6 +32,11 @@ composer require mbolli/php-ron
 ```php
 use Mbolli\Ron\Ron;
 
+// Encode/decode arbitrary PHP values, like json_encode/json_decode
+Ron::encode(['name' => 'Ada', 'active' => true]); // active true\nname Ada\n
+Ron::encode($data, pretty: false);                // compact RON
+Ron::decode("name Ada\nactive true");             // ['active' => true, 'name' => 'Ada']
+
 // RON -> JSON (compact by default, canonical key order)
 Ron::toJson("name Ada\nactive true");          // {"active":true,"name":"Ada"}
 Ron::toJson($ron, pretty: true);                // multiline JSON
