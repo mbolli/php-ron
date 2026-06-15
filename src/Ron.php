@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Mbolli\Ron;
 
 use Mbolli\Ron\Value\RonToken;
+use Mbolli\Ron\Vocabulary\VocabularyRegistry;
+use Mbolli\Ron\Vocabulary\VocabularyValidator;
 
 /**
  * Public facade for RON <-> JSON conversion.
@@ -22,6 +24,9 @@ final class Ron {
      * than overflowing the stack.
      */
     public const int DEFAULT_MAX_DEPTH = 512;
+
+    /** Default enabled vocabularies: core on, everything else opt-in. */
+    public const array DEFAULT_VOCABULARIES = [VocabularyRegistry::CORE_V1];
 
     /**
      * Convert RON to JSON.
@@ -42,10 +47,16 @@ final class Ron {
     /**
      * Convert JSON to RON.
      *
+     * When $vocabularies is non-empty, the parsed value is validated against those
+     * typed vocabularies before rendering (invalid typed payloads throw a
+     * RonException); pass `[]` to skip validation entirely. Unknown typed values
+     * remain ordinary objects. $registry defaults to the seven built-in vocabularies.
+     *
      * @param null|(callable(list<int|string>, mixed): array{0: mixed, 1: bool}) $mapper
-     *                                                                                     optional typed-value render hook: receives (path, value) and returns
-     *                                                                                     [replacement, replaced]
-     * @param int                                                                $maxDepth reject input nested deeper than this many levels
+     *                                                                                         optional typed-value render hook: receives (path, value) and returns
+     *                                                                                         [replacement, replaced]
+     * @param int                                                                $maxDepth     reject input nested deeper than this many levels
+     * @param list<string>                                                       $vocabularies enabled typed vocabulary URIs
      */
     public static function fromJson(
         string $json,
@@ -53,10 +64,34 @@ final class Ron {
         bool $canonical = true,
         ?callable $mapper = null,
         int $maxDepth = self::DEFAULT_MAX_DEPTH,
+        array $vocabularies = self::DEFAULT_VOCABULARIES,
+        ?VocabularyRegistry $registry = null,
     ): string {
         $value = (new JsonParser($json, $mapper, $maxDepth))->parse();
+        if ($vocabularies !== []) {
+            $value = (new VocabularyValidator($registry ?? VocabularyRegistry::official(), $vocabularies))->validate($value);
+        }
 
         return (new RonRenderer($pretty, $canonical))->render($value);
+    }
+
+    /**
+     * Validate a JSON document against the enabled typed vocabularies.
+     *
+     * Throws a RonException when a typed payload is invalid or when an enabled
+     * vocabulary URI is not supported by the registry. Does not render or return a
+     * value; use it for profile checks and standalone validation.
+     *
+     * @param list<string> $vocabularies enabled typed vocabulary URIs
+     */
+    public static function validate(
+        string $json,
+        array $vocabularies = self::DEFAULT_VOCABULARIES,
+        ?VocabularyRegistry $registry = null,
+        int $maxDepth = self::DEFAULT_MAX_DEPTH,
+    ): void {
+        $value = (new JsonParser($json, null, $maxDepth))->parse();
+        (new VocabularyValidator($registry ?? VocabularyRegistry::official(), $vocabularies))->validate($value);
     }
 
     /**
@@ -89,14 +124,32 @@ final class Ron {
         return json_decode(self::toJson($ron, maxDepth: $maxDepth), $associative, max(1, $maxDepth + 1), JSON_THROW_ON_ERROR);
     }
 
-    /** Compact, canonically-ordered RON (the canonical RON byte form). */
-    public static function canonicalRon(string $json, int $maxDepth = self::DEFAULT_MAX_DEPTH): string {
-        return self::fromJson($json, pretty: false, canonical: true, maxDepth: $maxDepth);
+    /**
+     * Compact, canonically-ordered RON (the canonical RON byte form).
+     *
+     * @param list<string> $vocabularies enabled typed vocabulary URIs
+     */
+    public static function canonicalRon(
+        string $json,
+        int $maxDepth = self::DEFAULT_MAX_DEPTH,
+        array $vocabularies = self::DEFAULT_VOCABULARIES,
+        ?VocabularyRegistry $registry = null,
+    ): string {
+        return self::fromJson($json, pretty: false, canonical: true, maxDepth: $maxDepth, vocabularies: $vocabularies, registry: $registry);
     }
 
-    /** Unseeded XXH3-128 of the canonical RON bytes, as 32 lowercase hex digits. */
-    public static function canonicalHash(string $json, int $maxDepth = self::DEFAULT_MAX_DEPTH): string {
-        return hash('xxh128', self::canonicalRon($json, $maxDepth));
+    /**
+     * Unseeded XXH3-128 of the canonical RON bytes, as 32 lowercase hex digits.
+     *
+     * @param list<string> $vocabularies enabled typed vocabulary URIs
+     */
+    public static function canonicalHash(
+        string $json,
+        int $maxDepth = self::DEFAULT_MAX_DEPTH,
+        array $vocabularies = self::DEFAULT_VOCABULARIES,
+        ?VocabularyRegistry $registry = null,
+    ): string {
+        return hash('xxh128', self::canonicalRon($json, $maxDepth, $vocabularies, $registry));
     }
 
     /** RFC 8785 (JCS) canonical JSON. Distinct from compact JSON: numbers are normalized. */
