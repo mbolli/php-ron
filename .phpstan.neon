@@ -1,0 +1,16 @@
+parameters:
+  level: 9
+  paths:
+    - src/
+  type_perfect:
+    null_over_false: true
+    no_mixed: false
+  type_coverage:
+    declare: 100
+    return: 100
+    param: 100
+    property: 100
+    constant: 100
+
+includes:
+  - vendor/phpstan/phpstan/conf/bleedingEdge.neon
