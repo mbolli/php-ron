@@ -25,9 +25,9 @@
   <g font-family="system-ui, sans-serif" font-size="26" fill="#a6a6c0">
     <rect x="92" y="486" width="220" height="58" rx="29" fill="none" stroke="#2b2b3d"/>
     <text x="202" y="522" text-anchor="middle">lossless JSON</text>
-    <rect x="332" y="486" width="230" height="58" rx="29" fill="none" stroke="#2b2b3d"/>
-    <text x="447" y="522" text-anchor="middle">RFC 8785 + XXH3</text>
-    <rect x="582" y="486" width="250" height="58" rx="29" fill="none" stroke="#2b2b3d"/>
-    <text x="707" y="522" text-anchor="middle">humans &amp; LLMs</text>
+    <rect x="332" y="486" width="270" height="58" rx="29" fill="none" stroke="#2b2b3d"/>
+    <text x="467" y="522" text-anchor="middle">RFC 8785 + SHA-256</text>
+    <rect x="622" y="486" width="250" height="58" rx="29" fill="none" stroke="#2b2b3d"/>
+    <text x="747" y="522" text-anchor="middle">humans &amp; LLMs</text>
   </g>
 </svg>
