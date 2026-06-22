@@ -4,6 +4,14 @@ All notable changes to this project are documented here. This project adheres to
 [Semantic Versioning](https://semver.org) and the
 [Keep a Changelog](https://keepachangelog.com) format.
 
+## [0.4.1] - 2026-06-22
+
+### Changed
+
+- Minimum PHP raised to 8.3. The codebase already relied on typed class constants (an 8.3
+  feature), so `composer.json`'s previous `>=8.1` was inaccurate; it now declares `>=8.3`.
+  Tests run against PHP 8.3, 8.4, and 8.5 in CI.
+
 ## [0.4.0] - 2026-06-22
 
 ### Added

@@ -16,7 +16,7 @@ use Mbolli\Ron\Vocabulary\VocabularyValidator;
  */
 final class Ron {
     /** Library version (semver). */
-    public const string VERSION = '0.4.0';
+    public const string VERSION = '0.4.1';
 
     /**
      * Default maximum nesting depth for the recursive parsers, mirroring
