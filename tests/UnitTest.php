@@ -7,6 +7,7 @@ namespace Mbolli\Ron\Tests;
 use Mbolli\Ron\Ron;
 use Mbolli\Ron\RonException;
 use Mbolli\Ron\Vocabulary\VocabularyRegistry;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -115,6 +116,45 @@ final class UnitTest extends TestCase {
         // Core is enabled by default, so a malformed core payload is rejected.
         $this->expectException(RonException::class);
         Ron::fromJson('{"bad":{"#uid":"not-a-uuid"}}');
+    }
+
+    public function testRegexAcceptsCanonicalPayloads(): void {
+        // #rx validates and renders: bare/quoted source, optional sorted flags. Flags-only edge
+        // cases ("ii") are covered by the corpus; these add accepts + escape/order checks.
+        self::assertSame("r {#rx [^foo\\d+\$ i]}\n", Ron::fromJson('{"r":{"#rx":["^foo\\\\d+$","i"]}}'));
+        self::assertSame("r {#rx [(?<word>\\w+)]}\n", Ron::fromJson('{"r":{"#rx":["(?<word>\\\\w+)"]}}'));
+        self::assertSame("r {#rx ['hello world']}\n", Ron::fromJson('{"r":{"#rx":["hello world"]}}'));
+        self::assertSame("r {#rx [^a\$ dgimsy]}\n", Ron::fromJson('{"r":{"#rx":["^a$","dgimsy"]}}'));
+        // A valid JS unicode escape is accepted (the \x{...} conversion is only for the
+        // compile check; the payload renders verbatim).
+        self::assertSame("r {#rx [\\u0041]}\n", Ron::fromJson('{"r":{"#rx":["\\\\u0041"]}}'));
+    }
+
+    #[DataProvider('provideRegexRejectsInvalidPayloadsCases')]
+    public function testRegexRejectsInvalidPayloads(string $json): void {
+        $this->expectException(RonException::class);
+        Ron::validate($json);
+    }
+
+    /** @return iterable<string, array{0: string}> */
+    public static function provideRegexRejectsInvalidPayloadsCases(): iterable {
+        yield 'flags out of order' => ['{"r":{"#rx":["^a$","gd"]}}'];
+
+        yield 'duplicate flag' => ['{"r":{"#rx":["^a$","ii"]}}'];
+
+        yield 'u and v are exclusive' => ['{"r":{"#rx":["^a$","uv"]}}'];
+
+        yield 'unknown flag' => ['{"r":{"#rx":["^a$","z"]}}'];
+
+        yield 'unicode escape out of range' => ['{"r":{"#rx":["\\\\u{110000}"]}}'];
+
+        yield 'uncompilable source' => ['{"r":{"#rx":["["]}}'];
+
+        yield 'empty payload' => ['{"r":{"#rx":[]}}'];
+
+        yield 'too many elements' => ['{"r":{"#rx":["a","i","x"]}}'];
+
+        yield 'non-string source' => ['{"r":{"#rx":[123]}}'];
     }
 
     public function testNonCoreVocabularyIsOptIn(): void {

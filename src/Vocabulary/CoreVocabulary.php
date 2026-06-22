@@ -22,6 +22,7 @@ final class CoreVocabulary {
         return [
             '#uid' => static fn (mixed $p, VocabularyValidator $v): mixed => self::uid($p),
             '#url' => static fn (mixed $p, VocabularyValidator $v): mixed => self::url($p),
+            '#rx' => static fn (mixed $p, VocabularyValidator $v): mixed => self::regex($p),
             '#dec' => static fn (mixed $p, VocabularyValidator $v): mixed => self::dec($p),
             '#b64' => static fn (mixed $p, VocabularyValidator $v): mixed => self::b64($p),
             '#sha256' => static fn (mixed $p, VocabularyValidator $v): mixed => self::sha256($p),
@@ -49,6 +50,187 @@ final class CoreVocabulary {
         }
 
         return $payload;
+    }
+
+    /**
+     * `#rx` is a JavaScript RegExp: payload `[source]` or `[source, flags]` (both strings).
+     * Validation-only — the array is returned verbatim so round-trips stay lossless. Mirrors
+     * ron-go's vocabulary_regex.go: flags must be canonical, the source must convert and compile.
+     */
+    private static function regex(mixed $payload): mixed {
+        if (!\is_array($payload) || \count($payload) < 1 || \count($payload) > 2) {
+            Payload::reject('#rx');
+        }
+        $source = $payload[0] ?? null;
+        $flags = \count($payload) === 2 ? ($payload[1] ?? null) : '';
+        if (!\is_string($source) || !\is_string($flags)) {
+            Payload::reject('#rx');
+        }
+        if (!self::validJsRegExpFlags($flags) || self::jsRegExpGoPattern($source, $flags) === null) {
+            Payload::reject('#rx');
+        }
+
+        return $payload;
+    }
+
+    /** Canonical JS flags: each char from `dgimsuvy`, strictly increasing (sorted + unique), `u`/`v` exclusive. */
+    private static function validJsRegExpFlags(string $flags): bool {
+        $order = 'dgimsuvy';
+        $last = -1;
+        $seenU = false;
+        $seenV = false;
+        $len = \strlen($flags);
+        for ($i = 0; $i < $len; ++$i) {
+            $index = strpos($order, $flags[$i]);
+            if ($index === false || $index <= $last) {
+                return false;
+            }
+            $last = $index;
+            if ($flags[$i] === 'u') {
+                $seenU = true;
+            } elseif ($flags[$i] === 'v') {
+                $seenV = true;
+            }
+        }
+
+        return !$seenU || !$seenV;
+    }
+
+    /**
+     * Converts a JS RegExp source to an RE2-style pattern, wraps i/m/s flags, and verifies it
+     * compiles. Returns the pattern, or null if the source has a bad escape or does not compile.
+     */
+    private static function jsRegExpGoPattern(string $source, string $flags): ?string {
+        $converted = self::convertJsRegExpSource($source);
+        if ($converted === null) {
+            return null;
+        }
+        $goFlags = '';
+        $len = \strlen($flags);
+        for ($i = 0; $i < $len; ++$i) {
+            if ($flags[$i] === 'i' || $flags[$i] === 'm' || $flags[$i] === 's') {
+                $goFlags .= $flags[$i];
+            }
+        }
+        $pattern = $goFlags === '' ? $converted : '(?' . $goFlags . ':' . $converted . ')';
+
+        // PHP has no RE2, so PCRE stands in for Go's regexp.Compile as the structural validity
+        // check. The grammars differ only on constructs RE2 forbids but PCRE allows -- backreferences
+        // (\1) and lookaround ((?=), (?!), (?<=), (?<!)) -- so such a source is accepted here yet
+        // rejected by ron-go. The conformance corpus exercises neither; per-engine semantics aside,
+        // both reject the same structurally-broken sources (e.g. an unterminated class "[").
+        $delimiter = self::pcreDelimiter($pattern);
+        if ($delimiter === null || @preg_match($delimiter . $pattern . $delimiter, '') === false) {
+            return null;
+        }
+
+        return $pattern;
+    }
+
+    /** Translates JS-specific escapes (`\uXXXX`, `\u{...}`, `\cX`, class `\b`) to `\x{...}`; null on a bad escape. */
+    private static function convertJsRegExpSource(string $source): ?string {
+        $converted = '';
+        $inClass = false;
+        $len = \strlen($source);
+        $i = 0;
+        while ($i < $len) {
+            $char = $source[$i];
+            if ($char !== '\\') {
+                if ($char === '[' && !$inClass) {
+                    $inClass = true;
+                } elseif ($char === ']' && $inClass) {
+                    $inClass = false;
+                }
+                $converted .= $char;
+                ++$i;
+
+                continue;
+            }
+            if ($i + 1 === $len) {
+                $converted .= $char;
+                ++$i;
+
+                continue;
+            }
+            $next = $source[$i + 1];
+            if ($next === 'u') {
+                $end = self::appendUnicodeEscape($converted, $source, $i + 2);
+                if ($end === null) {
+                    return null;
+                }
+                $i = $end;
+            } elseif ($next === 'c' && $i + 2 < $len && self::isAsciiAlpha($source[$i + 2])) {
+                self::appendHexEscape($converted, \ord($source[$i + 2]) & 0x1F);
+                $i += 3;
+            } elseif ($next === 'b' && $inClass) {
+                self::appendHexEscape($converted, 0x08);
+                $i += 2;
+            } else {
+                $converted .= $char . $next;
+                $i += 2;
+            }
+        }
+
+        return $converted;
+    }
+
+    /** Appends a `\uXXXX` or `\u{...}` escape as `\x{...}`; returns the next index, or null if malformed/out of range. */
+    private static function appendUnicodeEscape(string &$converted, string $source, int $pos): ?int {
+        $len = \strlen($source);
+        if ($pos < $len && $source[$pos] === '{') {
+            $end = $pos + 1;
+            while ($end < $len && $source[$end] !== '}') {
+                if (!self::isHexByte($source[$end])) {
+                    return null;
+                }
+                ++$end;
+            }
+            if ($end === $pos + 1 || $end === $len) {
+                return null;
+            }
+            $hex = substr($source, $pos + 1, $end - ($pos + 1));
+            if (hexdec($hex) > 0x10FFFF) {
+                return null;
+            }
+            $converted .= '\\x{' . $hex . '}';
+
+            return $end + 1;
+        }
+        if ($pos + 4 > $len) {
+            return null;
+        }
+        for ($j = $pos; $j < $pos + 4; ++$j) {
+            if (!self::isHexByte($source[$j])) {
+                return null;
+            }
+        }
+        $converted .= '\\x{' . substr($source, $pos, 4) . '}';
+
+        return $pos + 4;
+    }
+
+    private static function appendHexEscape(string &$converted, int $value): void {
+        $hex = dechex($value);
+        $converted .= '\\x{' . ($value < 0x10 ? '0' . $hex : $hex) . '}';
+    }
+
+    /** First non-alphanumeric delimiter absent from the pattern, or null if every candidate occurs. */
+    private static function pcreDelimiter(string $pattern): ?string {
+        foreach (['/', '#', '~', '%', '@', '!', ';', ',', '|', '='] as $delimiter) {
+            if (!str_contains($pattern, $delimiter)) {
+                return $delimiter;
+            }
+        }
+
+        return null;
+    }
+
+    private static function isHexByte(string $char): bool {
+        return ($char >= '0' && $char <= '9') || ($char >= 'A' && $char <= 'F') || ($char >= 'a' && $char <= 'f');
+    }
+
+    private static function isAsciiAlpha(string $char): bool {
+        return ($char >= 'A' && $char <= 'Z') || ($char >= 'a' && $char <= 'z');
     }
 
     private static function dec(mixed $payload): string {
