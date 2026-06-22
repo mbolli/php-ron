@@ -65,9 +65,9 @@
     </div>
 
     <ul class="badges" aria-label="Project facts">
-      <li>PHP &ge; 8.1</li>
+      <li>PHP &ge; 8.3</li>
       <li>MIT licensed</li>
-      <li>258 tests passing</li>
+      <li>270 tests passing</li>
       <li>PHPStan level 9</li>
     </ul>
   </section>
@@ -235,6 +235,7 @@ Ron::canonicalJson($json);">
       <figure class="vocab-col">
         <figcaption>RON</figcaption>
 <pre class="code" aria-label="Typed values in RON"><!-- build:vocab-sample --><span class="hl-keyword">account</span> <span class="hl-property">{</span><span class="hl-keyword">#uid</span> <span class="hl-value">4f6e2a91-0c3d-4b7a-9f21-1a2b3c4d5e6f</span><span class="hl-property">}</span>
+<span class="hl-keyword">pattern</span> <span class="hl-property">{</span><span class="hl-keyword">#rx</span> <span class="hl-property">[</span><span class="hl-value">^foo\d+$</span> <span class="hl-value">i</span><span class="hl-property">]</span><span class="hl-property">}</span>
 <span class="hl-keyword">created</span> <span class="hl-property">{</span><span class="hl-keyword">#utc</span> <span class="hl-value">2026-06-13T00:00:00Z</span><span class="hl-property">}</span>
 <span class="hl-keyword">ttl</span> <span class="hl-property">{</span><span class="hl-keyword">#dur</span> <span class="hl-value">PT1H30M</span><span class="hl-property">}</span>
 <span class="hl-keyword">host</span> <span class="hl-property">{</span><span class="hl-keyword">#ip4</span> <span class="hl-value">192.0.2.1</span><span class="hl-property">}</span>
@@ -248,7 +249,7 @@ Ron::canonicalJson($json);">
         <table>
           <thead><tr><th>Vocabulary</th><th>Tags</th></tr></thead>
           <tbody>
-            <tr><td><code>core</code></td><td><code>#uid #url #dec #b64 #sha256 # #tag</code></td></tr>
+            <tr><td><code>core</code></td><td><code>#uid #url #rx #dec #b64 #sha256 # #tag</code></td></tr>
             <tr><td><code>time</code></td><td><code>#utc #dur</code></td></tr>
             <tr><td><code>network</code></td><td><code>#ip4 #ip6 #cdr</code></td></tr>
             <tr><td><code>math</code></td><td><code>#i64 #u64 #f64 #ivN #vN #iv2&hellip;4 #f2v&hellip;4v #qat #eul #m2x #m3x #m4x</code></td></tr>
