@@ -4,6 +4,22 @@ All notable changes to this project are documented here. This project adheres to
 [Semantic Versioning](https://semver.org) and the
 [Keep a Changelog](https://keepachangelog.com) format.
 
+## [0.4.0] - 2026-06-22
+
+### Added
+
+- `#rx` core vocabulary tag (JavaScript RegExp). Validates `[source]` or `[source, flags]`
+  payloads: flags must be canonical (sorted, unique, drawn from `dgimsuvy`, with `u` and `v`
+  mutually exclusive) and the source must convert (JS escapes) and compile. Matches upstream RON
+  ([PR #22](https://github.com/starfederation/ron/pull/22)) and ron-go
+  ([PR #29](https://github.com/starfederation/ron-go/pull/29)). Validation-only, so `#rx` values
+  round-trip losslessly. PHP has no RE2, so PCRE backs the source compile check; it diverges from
+  ron-go only on backreferences/lookaround, which no conformance case exercises.
+
+### Changed
+
+- Updated the pinned RON conformance corpus to include the `#rx` fixtures.
+
 ## [0.3.0] - 2026-06-15
 
 ### Changed
