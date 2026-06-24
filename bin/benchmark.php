@@ -9,7 +9,7 @@ declare(strict_types=1);
  *   php -d opcache.enable_cli=1 -d opcache.jit_buffer_size=128M -d opcache.jit=tracing bin/benchmark.php
  *
  * Throughput is flat and linear in input size from ~1.5 KB to ~320 KB: JSON->RON
- * and the canonical hash run ~19 MB/s, RON->JSON ~15 MB/s. The heavy scanning is
+ * and the canonical hash run ~18 MB/s, RON->JSON ~14 MB/s. The heavy scanning is
  * delegated to native strcspn/strpos and array_multisort, leaving PHP to do only
  * per-token dispatch. A 1-10 KB payload converts in well under a millisecond. See
  * the README "Performance" section for a comparison against the Go reference.
