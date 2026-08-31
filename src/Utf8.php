@@ -58,6 +58,31 @@ final class Utf8 {
         return [(($b0 & 0x07) << 18) | (($b1 & 0x3F) << 12) | (($b2 & 0x3F) << 6) | ($b3 & 0x3F), 4];
     }
 
+    /**
+     * UTF-8 encode one code point ({@see decodeRune}'s inverse).
+     *
+     * The masks are redundant for a valid code point but keep every byte provably in
+     * chr()'s 0-255 domain.
+     */
+    public static function encodeRune(int $rune): string {
+        if ($rune < 0x80) {
+            return \chr($rune & 0x7F);
+        }
+        if ($rune < 0x800) {
+            return \chr(0xC0 | (($rune >> 6) & 0x1F)) . \chr(0x80 | ($rune & 0x3F));
+        }
+        if ($rune < 0x10000) {
+            return \chr(0xE0 | (($rune >> 12) & 0x0F))
+                . \chr(0x80 | (($rune >> 6) & 0x3F))
+                . \chr(0x80 | ($rune & 0x3F));
+        }
+
+        return \chr(0xF0 | (($rune >> 18) & 0x07))
+            . \chr(0x80 | (($rune >> 12) & 0x3F))
+            . \chr(0x80 | (($rune >> 6) & 0x3F))
+            . \chr(0x80 | ($rune & 0x3F));
+    }
+
     /** Unicode White_Space code points at or above 0x80 (ASCII handled separately). */
     public static function isSpaceAbove(int $r): bool {
         return match (true) {

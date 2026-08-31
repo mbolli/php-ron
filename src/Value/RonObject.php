@@ -48,6 +48,10 @@ final class RonObject {
         $this->values[] = $value;
     }
 
+    public function has(string $key): bool {
+        return isset($this->index[$key]);
+    }
+
     public function count(): int {
         return \count($this->keys);
     }

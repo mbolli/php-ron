@@ -6,6 +6,7 @@ namespace Mbolli\Ron\Tests;
 
 use Mbolli\Ron\Ron;
 use Mbolli\Ron\RonException;
+use Mbolli\Ron\RonMode;
 use Mbolli\Ron\Vocabulary\VocabularyRegistry;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -28,17 +29,32 @@ final class VocabularyTest extends TestCase {
 
         $ron = Ron::fromJson(
             $input,
-            pretty: true,
-            canonical: true,
+            RonMode::Pretty,
+            vocabularies: $case['vocabularies'],
+            registry: self::registry(),
+        );
+        // The goldens are pretty RON in canonical key order, so sort the rendered value
+        // by round-tripping it through canonical JSON (what ron-go's fixtures do too).
+        $ron = Ron::fromJson(
+            Ron::toJson($ron, RonMode::Canonical),
+            RonMode::Pretty,
             vocabularies: $case['vocabularies'],
             registry: self::registry(),
         );
         self::assertSame(self::read($case['expectedRON']), $ron, $case['name']);
 
-        // Produced RON parses back to the original value (validation is lossless).
-        self::assertSameJsonValue(
-            json_decode($input, true, flags: JSON_THROW_ON_ERROR),
-            json_decode(Ron::toJson($ron), true, flags: JSON_THROW_ON_ERROR),
+        // Rendered RON parses back and re-renders identically. Comparing against the
+        // golden rather than $input is what makes this valid for the transforming tags
+        // (#vox forces its cells multiline; #set and #bits normalize their payloads),
+        // where validation is deliberately not value-preserving.
+        self::assertSame(
+            $ron,
+            Ron::fromJson(
+                Ron::toJson($ron),
+                RonMode::Pretty,
+                vocabularies: $case['vocabularies'],
+                registry: self::registry(),
+            ),
             $case['name'] . ' round-trip',
         );
     }

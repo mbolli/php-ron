@@ -23,15 +23,77 @@ use Mbolli\Ron\Value\RonObject;
  * so this renderer can never receive an over-deep tree.
  */
 final class RonRenderer {
-    /** ASCII structural delimiters: { } [ ] " ' , space tab LF CR. */
-    private const string STRUCTURAL = "{}[]\"',\x20\x09\x0A\x0D";
+    /**
+     * ASCII bytes that force a string to be quoted: { } [ ] " ' , space.
+     *
+     * Tab, LF and CR are RON delimiters when raw, but the renderer escapes them to
+     * \t / \n / \r first, so they no longer force quoting -- `a\nb` renders bare.
+     */
+    private const string STRUCTURAL = "{}[]\"',\x20";
+
+    /** Bytes the RON string renderer must escape: backslash and the C0 controls. */
+    private const string ESCAPABLE = "\\\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F";
+
+    /**
+     * Every byte that makes a string non-trivial to render: it either needs escaping
+     * (ESCAPABLE) or forces quoting (STRUCTURAL), plus the UTF-8 lead bytes that can
+     * begin a Unicode whitespace rune. One strcspn over this answers both questions for
+     * the common case, replacing two scans and an mb_check_encoding call.
+     */
+    private const string BARE_STOP = self::STRUCTURAL . self::ESCAPABLE . "\xC2\xE1\xE2\xE3";
+
+    /**
+     * Backslash and C0 control -> JSON escape. Applied with a single strtr() pass so
+     * escapes written into the output are never re-escaped (strtr does not rescan its
+     * own replacements, unlike chained str_replace calls).
+     */
+    private const array ESCAPES = [
+        "\x00" => '\u0000',
+        "\x01" => '\u0001',
+        "\x02" => '\u0002',
+        "\x03" => '\u0003',
+        "\x04" => '\u0004',
+        "\x05" => '\u0005',
+        "\x06" => '\u0006',
+        "\x07" => '\u0007',
+        "\x08" => '\b',
+        "\x09" => '\t',
+        "\x0A" => '\n',
+        "\x0B" => '\u000b',
+        "\x0C" => '\f',
+        "\x0D" => '\r',
+        "\x0E" => '\u000e',
+        "\x0F" => '\u000f',
+        "\x10" => '\u0010',
+        "\x11" => '\u0011',
+        "\x12" => '\u0012',
+        "\x13" => '\u0013',
+        "\x14" => '\u0014',
+        "\x15" => '\u0015',
+        "\x16" => '\u0016',
+        "\x17" => '\u0017',
+        "\x18" => '\u0018',
+        "\x19" => '\u0019',
+        "\x1A" => '\u001a',
+        "\x1B" => '\u001b',
+        "\x1C" => '\u001c',
+        "\x1D" => '\u001d',
+        "\x1E" => '\u001e',
+        "\x1F" => '\u001f',
+        '\\' => '\\\\',
+    ];
 
     private const int INLINE_LIMIT = 80;
 
-    public function __construct(
-        private readonly bool $pretty = true,
-        private readonly bool $canonical = true,
-    ) {}
+    private readonly bool $pretty;
+
+    /** Canonical mode is the only one that sorts; pretty and compact keep source order. */
+    private readonly bool $canonical;
+
+    public function __construct(RonMode $mode = RonMode::Pretty) {
+        $this->pretty = $mode === RonMode::Pretty;
+        $this->canonical = $mode === RonMode::Canonical;
+    }
 
     public function render(mixed $value): string {
         if (!$this->pretty) {
@@ -43,26 +105,59 @@ final class RonRenderer {
             return $this->writeObjectMembers($this->members($value), '  ', -1) . "\n";
         }
 
+        // Pretty RON always ends with one newline (manifest: prettyRONTrailingNewline).
+        // Compact and canonical do not.
         return $this->writeValue($value, '  ', 0) . "\n";
     }
 
+    /**
+     * Render a string as a RON token: escape first, then decide bare vs quoted from
+     * the *escaped* content. Keys skip the keyword/number check because object keys
+     * are always strings, so a scalar-looking key can stay bare.
+     */
     public static function renderString(string $value, bool $isKey): string {
-        if (!self::isStructural($value)) {
-            if ($isKey) {
-                return $value;
-            }
+        // Fast path: one scan proves there is nothing to escape and nothing that forces
+        // quoting, so the value is its own escaped form and holds no apostrophe.
+        if ($value !== '' && strcspn($value, self::BARE_STOP) === \strlen($value)) {
             if (
-                $value !== 'true' && $value !== 'false' && $value !== 'null'
-                && !Scanner::looksLikeNumber($value)
+                $isKey
+                || ($value !== 'true' && $value !== 'false' && $value !== 'null'
+                    && !Scanner::looksLikeNumber($value))
             ) {
                 return $value;
             }
+
+            // Scalar-looking, but still nothing to escape: a single delimiter suffices.
+            return "'" . $value . "'";
         }
 
-        $longest = self::longestApostropheRun($value);
+        $escaped = self::escape($value);
+        if (!self::isStructural($value)) {
+            if ($isKey) {
+                return $escaped;
+            }
+            if (
+                $escaped !== 'true' && $escaped !== 'false' && $escaped !== 'null'
+                && !Scanner::looksLikeNumber($escaped)
+            ) {
+                return $escaped;
+            }
+        }
+
+        $longest = self::longestApostropheRun($escaped);
         $delimiter = str_repeat("'", $longest + 1);
 
-        return $delimiter . $value . $delimiter;
+        return $delimiter . $escaped . $delimiter;
+    }
+
+    /** Apply the JSON escape set to backslash and C0 controls; everything else is raw. */
+    private static function escape(string $value): string {
+        // Nothing to escape is the overwhelmingly common case; skip strtr's copy.
+        if (strcspn($value, self::ESCAPABLE) === \strlen($value)) {
+            return $value;
+        }
+
+        return strtr($value, self::ESCAPES);
     }
 
     private function writeValue(mixed $value, string $indent, int $depth): string {

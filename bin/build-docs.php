@@ -60,11 +60,12 @@ $replace = static function (string $html, string $name, string $content): string
 // Each entry is [PHP signature, description HTML]. $maxDepth is omitted from the
 // signatures; the table footnote documents it.
 $methods = [
-    ['toJson(string $ron, bool $pretty = false, bool $canonical = true)', 'RON to JSON (compact, canonical key order by default).'],
-    ['fromJson(string $json, bool $pretty = true, bool $canonical = true, ?callable $mapper = null, array $vocabularies = [VocabularyRegistry::CORE_V1], ?VocabularyRegistry $registry = null)', 'JSON to RON (pretty by default); optional typed-value render hook and typed-vocabulary validation (core enabled by default).'],
-    ['encode(mixed $value, bool $pretty = true, bool $canonical = true)', 'Encode any PHP value as RON, like <code>json_encode</code>.'],
+    ['toJson(string $ron, RonMode $mode = RonMode::Pretty)', 'RON to JSON. <code>Pretty</code> and <code>Compact</code> keep source order; <code>Canonical</code> is RFC 8785 JSON.'],
+    ['fromJson(string $json, RonMode $mode = RonMode::Pretty, ?callable $mapper = null, array $vocabularies = [VocabularyRegistry::CORE_V1], ?VocabularyRegistry $registry = null)', 'JSON to RON; optional typed-value render hook and typed-vocabulary validation (core enabled by default).'],
+    ['format(string $ron, RonMode $mode = RonMode::Pretty)', 'Re-render RON source in another mode (RON to RON).'],
+    ['encode(mixed $value, RonMode $mode = RonMode::Pretty)', 'Encode any PHP value as RON, like <code>json_encode</code>.'],
     ['decode(string $ron, bool $associative = true)', 'Decode RON to a PHP value, like <code>json_decode</code>.'],
-    ['canonicalRon(string $json)', 'Compact, canonically-ordered RON (the canonical byte form).'],
+    ['canonicalRon(string $json)', 'Canonical RON: compact bytes for an RFC 8785 / I-JSON value.'],
     ['canonicalHash(string $json)', 'SHA-256 of the canonical RON, 64 lowercase hex digits.'],
     ['canonicalJson(string $json)', 'RFC 8785 (JCS) canonical JSON.'],
     ['validate(string $json, array $vocabularies = [VocabularyRegistry::CORE_V1], ?VocabularyRegistry $registry = null)', 'Validate typed payloads against the enabled vocabularies; throws on invalid.'],
@@ -110,12 +111,13 @@ $ronSample = <<<'RON'
 
 $vocabSample = <<<'RON'
     account {#uid 4f6e2a91-0c3d-4b7a-9f21-1a2b3c4d5e6f}
+    pattern {#rx [^foo\\d+$ i]}
     created {#utc 2026-06-13T00:00:00Z}
     ttl {#dur PT1H30M}
     host {#ip4 192.0.2.1}
     balance {#dec '1234.56'}
     score {#f3v [1.5 2.5 3.5]}
-    location {#lla [-73.9857 40.7484 381]}
+    roles {#set [admin reader writer]}
     accent {#clr [oklch 0.7 0.15 230]}
     parent {# 300}
     RON;

@@ -12,7 +12,8 @@ use Mbolli\Ron\Value\RonObject;
  * Spatial typed vocabulary: geospatial points, geometry primitives, and voxels.
  *
  * Mirrors ron-go's vocabulary_spatial.go. Coordinate tuples are fixed-arity float
- * arrays. The `#vox` sparse voxel set requires dimensions/origin/cellSize/cells and
+ * arrays; geographic positions live in the geo vocabulary's `#geo`, not here (`#lla`
+ * was removed upstream). The `#vox` sparse voxel set requires dimensions/origin/cellSize/cells and
  * forces its non-empty `cells` list multiline ({@see MultilineList}). Voxel
  * origin/cellSize are validated structurally as `{#vN [...]}` shapes, independent of
  * whether the math vocabulary is enabled.
@@ -23,7 +24,6 @@ final class SpatialVocabulary {
     /** @return array<string, \Closure(mixed, VocabularyValidator): mixed> */
     public static function validators(): array {
         return [
-            '#lla' => static fn (mixed $p, VocabularyValidator $v): mixed => self::tuple($p, 3, '#lla'),
             '#sph' => static fn (mixed $p, VocabularyValidator $v): mixed => self::tuple($p, 3, '#sph'),
             '#cyl' => static fn (mixed $p, VocabularyValidator $v): mixed => self::tuple($p, 3, '#cyl'),
             '#bx2' => static fn (mixed $p, VocabularyValidator $v): mixed => self::tuples($p, 2, 2, '#bx2'),

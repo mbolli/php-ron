@@ -6,7 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `mbolli/php-ron` is a performance-focused PHP implementation of RON (Readable Object Notation):
 a JSON-equivalent value model with lighter syntax (elided root braces, bare strings, optional
-commas, repeated-quote strings with no escapes). It is a behavioral port of the Go reference
+commas, repeated-quote strings). Every string form uses the JSON escape set. It is a behavioral
+port of the Go reference
 [ron-go](https://github.com/starfederation/ron-go) — when in doubt about correct behavior, the
 Go source is the spec, and outputs must match the upstream conformance corpus byte-for-byte.
 
@@ -31,8 +32,26 @@ globally installed PHPStan/cs-fixer/PHPUnit).
 
 ## Architecture
 
-The public surface is the static facade `src/Ron.php` (`toJson`, `fromJson`, `encode`, `decode`,
-`canonicalRon`, `canonicalHash`, `canonicalJson`). Everything else is an internal collaborator.
+The public surface is the static facade `src/Ron.php` (`toJson`, `fromJson`, `format`, `encode`,
+`decode`, `canonicalRon`, `canonicalHash`, `canonicalJson`). Everything else is an internal
+collaborator.
+
+**Output is selected by one `RonMode`** (`src/RonMode.php`), never by independent flags:
+`Pretty` (multiline) and `Compact` (single line) both preserve source member order; `Canonical`
+is a different contract, not sorted compact output. Canonical routes through `Rfc8785` first --
+that one step applies the whole RFC 8785 + I-JSON check set (duplicate decoded names, invalid
+Unicode, noncharacters, non-finite numbers) and rewrites number spelling -- and only then renders
+compact RON with sorted keys. `RonToJson` therefore never sorts; canonical JSON is `Rfc8785`'s
+output. Pretty RON keeps its trailing newline (manifest `prettyRONTrailingNewline: true`);
+compact and canonical do not.
+
+**Escapes are shared by every string form.** `Scanner::scanTokenEnd`/`decodeEscape`/
+`decodeStringSpan` handle bare tokens, keys, comma-prefixed tokens and quoted strings alike; an
+escape is one scanner atom, so delimiter and whitespace detection happens on the *unescaped*
+source. Type classification (`true`/`false`/`null`/number) reads the raw source span, which is
+why `RonToJson` takes `tokenSpanBounds()` and decodes only after classifying. On the render side
+`RonRenderer::escape()` runs before the bare-vs-quoted decision, so `"a\nb"` renders bare as
+`a\nb` while tab/LF/CR are no longer structural.
 
 **Two deliberately different conversion strategies** (mirroring ron-go):
 
@@ -58,7 +77,9 @@ characters (4-byte UTF-8, lead byte >= 0xF0) need UTF-16BE conversion. `Canonica
 uses `array_multisort` (C sort, no per-comparison PHP callback).
 
 `Rfc8785` is a separate JSON-canonicalization path (JCS): it normalizes numbers to ECMAScript
-double serialization, rejects duplicate keys and lone surrogates — distinct from the number-text-
+double serialization, rejects duplicate decoded keys, lone surrogates, invalid UTF-8 and Unicode
+noncharacters (a finite number that *rounds* during conversion is fine; only a non-finite
+conversion is an error) — distinct from the number-text-
 preserving compact JSON renderer. `JsonString` is the shared JSON string escaper; `Utf8` decodes runes.
 
 The canonical hash is `hash('sha256', ...)` (64 lowercase hex), matching the spec's "SHA-256,
@@ -87,9 +108,14 @@ independent concerns:
 to reject it, or any other value to replace it (a transform, e.g. `#vox` -> `MultilineList`); it may
 also throw, or return `VocabularyRegistry::replace($v)` to set a literal boolean payload. The walker
 (`VocabularyValidator`) discriminates that return value. `official()` registers
-the seven built-ins (core/time/network/math/spatial are
-ported from ron-go's `vocabulary_*.go`; geo/color are written from `docs/vocabularies.md`, since
-ron-go has not built them yet). `register()` adds custom, reverse-DNS-namespaced vocabularies.
+the eight built-ins (core/time/network/set/math/spatial are
+ported from ron-go's `vocabulary_*.go`; geo/color/`#topo` are written from `docs/vocabularies.md`
+and the corpus JSON Schemas, since ron-go has not built them yet). Besides `#vox`, the
+transforming validators are `#set` (dedupe + sort by each element's RFC 8785 canonical JSON
+bytes, via `Rfc8785::canonicalizeValue()`) and `#bits` (uint32 indexes -> ascending merged
+ranges). `VocabularyValidator` stops recursing once it hits a typed value and hands the raw
+payload to the tag's validator, so a typed value *nested inside* another tag's payload is not
+normalized; ron-go does the same, and `#set` identity is defined on the parsed element anyway. `register()` adds custom, reverse-DNS-namespaced vocabularies.
 Per-tag payload contracts live in `docs/vocabularies.md`; the Go source is still the spec for the
 five it implements.
 
@@ -111,7 +137,11 @@ Fixtures are pinned git submodules under `tests/corpus/` (`ron` = upstream RON c
 `json` = nst/JSONTestSuite). `bin/init-submodules.php` fetches them on `composer install`.
 
 - Golden-file assertions (`ConformanceTest`, `Rfc8785Test`) are **exact byte** matches, incl.
-  SHA-256 hashes. Pretty RON has a trailing newline; compact/pretty JSON do not.
+  SHA-256 hashes. Pretty RON has a trailing newline; compact/canonical RON and all JSON do not.
+- The vocabulary goldens are pretty RON in *canonical key order*, so `VocabularyTest` sorts the
+  rendered value by round-tripping it through canonical JSON, exactly as ron-go's fixtures do.
+  Its round-trip assertion compares RON -> JSON -> RON against the golden, not against the input,
+  because the transforming tags are deliberately not value-preserving.
 - Round-trip / structural comparisons use the `ComparesJson` trait (recursive key-sort + strict
   compare). Do NOT use PHPUnit's `assertEqualsCanonicalizing` — it value-sorts arrays and scrambles
   associative arrays of mixed-type values.

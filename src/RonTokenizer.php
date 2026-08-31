@@ -27,8 +27,7 @@ final class RonTokenizer extends Scanner {
     private array $tokens = [];
 
     public function __construct(string $src) {
-        $this->src = $src;
-        $this->len = \strlen($src);
+        $this->setSource($src);
     }
 
     /**
@@ -56,7 +55,9 @@ final class RonTokenizer extends Scanner {
 
                     try {
                         $this->scanKey();
-                        $this->scanValue(1);
+                        // skipWhitespace, not skipSpace: a comma here belongs to the value.
+                        $this->skipWhitespace();
+                        $this->scanValueCurrent(1);
                     } catch (RonException) {
                         break;
                     }
@@ -104,7 +105,8 @@ final class RonTokenizer extends Scanner {
                         return;
                     }
                     $this->scanKey();
-                    $this->scanValue($depth + 1);
+                    $this->skipWhitespace();
+                    $this->scanValueCurrent($depth + 1);
                     $this->skipSeparators();
                 }
 

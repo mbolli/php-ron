@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Mbolli\Ron;
 
+use Mbolli\Ron\Value\MultilineList;
+use Mbolli\Ron\Value\RonNumber;
 use Mbolli\Ron\Value\RonObject;
 
 /**
@@ -11,8 +13,12 @@ use Mbolli\Ron\Value\RonObject;
  *
  * This is a separate byte contract from RON's compact JSON: numbers are normalized
  * to ECMAScript double serialization, object keys are sorted by UTF-16 code units,
- * duplicate keys and lone surrogates are rejected, and integers must be exactly
- * representable as IEEE 754 doubles.
+ * and the I-JSON value constraints of RFC 7493 apply -- duplicate decoded member
+ * names, lone surrogates, invalid UTF-8 and Unicode noncharacters are rejected.
+ *
+ * A finite source number may *round* on its way to IEEE 754 double precision
+ * (9007199254740993 canonicalizes to 9007199254740992); only a conversion that
+ * produces a non-finite value is an error.
  *
  * Numbers are carried as PHP floats in the value model: null | bool | string |
  * float | list<mixed> | RonObject.
@@ -32,6 +38,32 @@ final class Rfc8785 {
     }
 
     public static function canonicalize(string $src, int $maxDepth = 512): string {
+        return self::write(self::parse($src, $maxDepth));
+    }
+
+    /**
+     * The same validating parse as {@see canonicalize()}, but handed back in the
+     * *parser* value model with each number replaced by its ECMAScript serialization.
+     *
+     * Canonical RON renders straight from this, so it costs one parse rather than a
+     * canonical-JSON serialize plus a second parse.
+     */
+    public static function canonicalModel(string $src, int $maxDepth = 512): mixed {
+        return self::toNumberTextModel(self::parse($src, $maxDepth));
+    }
+
+    /**
+     * RFC 8785 canonical JSON for a node of the *parser* value model (the one
+     * JsonParser produces, where numbers are {@see RonNumber} source text).
+     *
+     * The set vocabulary uses these bytes as the identity of a `#set` element, so
+     * `{b 2 a 1}` and `{a 1 b 2}` compare equal.
+     */
+    public static function canonicalizeValue(mixed $value): string {
+        return self::write(self::toDoubleModel($value));
+    }
+
+    private static function parse(string $src, int $maxDepth): mixed {
         self::scanSurrogates($src);
         $parser = new self($src, $maxDepth);
         $value = $parser->parseValue(0);
@@ -40,7 +72,27 @@ final class Rfc8785 {
             throw RonException::at('unexpected trailing JSON', $parser->pos);
         }
 
-        return self::write($value);
+        return $value;
+    }
+
+    /** Float-numbered model -> the RonNumber-carrying model the renderers consume. */
+    private static function toNumberTextModel(mixed $value): mixed {
+        if (\is_float($value)) {
+            return new RonNumber(self::number($value));
+        }
+        if (\is_array($value)) {
+            return array_map(self::toNumberTextModel(...), $value);
+        }
+        if ($value instanceof RonObject) {
+            $object = new RonObject();
+            foreach ($value->members() as [$key, $member]) {
+                $object->set($key, self::toNumberTextModel($member));
+            }
+
+            return $object;
+        }
+
+        return $value;
     }
 
     /** Reject lone surrogates in \uXXXX escapes (RFC 8785 Sections 3.1, 3.2.2.2). */
@@ -232,12 +284,10 @@ final class Rfc8785 {
         $this->pos += \strlen($text);
 
         $float = (float) $text;
+        // RFC 8785 Section 3.1: only a conversion that is not finite is rejected.
+        // Rounding a finite value (9007199254740993 -> ...992) is expected.
         if (!is_finite($float)) {
-            throw new RonException('ron: invalid JSON number');
-        }
-        // Integers must be exactly representable as an IEEE 754 double.
-        if (strpbrk($text, '.eE') === false && \sprintf('%.0f', $float) !== $text) {
-            throw new RonException('ron: JSON integer is not exactly representable as float64');
+            throw new RonException('ron: JSON number is not a finite IEEE 754 double');
         }
 
         return $float;
@@ -255,6 +305,7 @@ final class Rfc8785 {
             if ($c === '"') {
                 $result .= substr($src, $start, $this->pos - $start);
                 ++$this->pos;
+                self::validateIJsonString($result);
 
                 return $result;
             }
@@ -325,31 +376,67 @@ final class Rfc8785 {
                     $low = (int) self::hex4($this->src, $this->pos + 2, $this->len);
                     $this->pos += 6;
 
-                    return self::utf8Encode(0x10000 + (($code - 0xD800) << 10) + ($low - 0xDC00));
+                    return Utf8::encodeRune(0x10000 + (($code - 0xD800) << 10) + ($low - 0xDC00));
                 }
 
-                return self::utf8Encode($code);
+                return Utf8::encodeRune($code);
 
             default:
                 throw RonException::at('invalid JSON escape', $this->pos);
         }
     }
 
-    private static function utf8Encode(int $cp): string {
-        if ($cp < 0x80) {
-            return \chr($cp);
+    /**
+     * I-JSON string content check (RFC 7493 Section 2.1), applied to decoded bytes so
+     * it catches a noncharacter written directly *or* via a \uXXXX escape.
+     */
+    private static function validateIJsonString(string $value): void {
+        if (!mb_check_encoding($value, 'UTF-8')) {
+            throw new RonException('ron: invalid UTF-8 in JSON string');
         }
-        if ($cp < 0x800) {
-            return \chr(0xC0 | ($cp >> 6)) . \chr(0x80 | ($cp & 0x3F));
+        // Every noncharacter's UTF-8 encoding starts with EF (U+FDD0-FDEF, U+FFFE,
+        // U+FFFF) or F0-F4 (the plane-end pairs), so nothing else can match and the
+        // per-rune walk below is skipped for ordinary text.
+        if (strcspn($value, "\xEF\xF0\xF1\xF2\xF3\xF4") === \strlen($value)) {
+            return;
         }
-        if ($cp < 0x10000) {
-            return \chr(0xE0 | ($cp >> 12)) . \chr(0x80 | (($cp >> 6) & 0x3F)) . \chr(0x80 | ($cp & 0x3F));
+        $len = \strlen($value);
+        for ($i = 0; $i < $len;) {
+            [$rune, $size] = Utf8::decodeRune($value, $i, $len);
+            // (rune & 0xFFFE) === 0xFFFE matches U+FFFE/U+FFFF in every plane.
+            if (($rune >= 0xFDD0 && $rune <= 0xFDEF) || ($rune & 0xFFFE) === 0xFFFE) {
+                throw new RonException('ron: Unicode noncharacter in JSON string');
+            }
+            $i += $size;
+        }
+    }
+
+    /** Value model -> the float-numbered model {@see write()} consumes. */
+    private static function toDoubleModel(mixed $value): mixed {
+        if ($value instanceof RonNumber) {
+            $float = (float) $value->text;
+            if (!is_finite($float)) {
+                throw new RonException('ron: JSON number is not a finite IEEE 754 double');
+            }
+
+            return $float;
+        }
+        if ($value instanceof MultilineList) {
+            $value = $value->items;
+        }
+        if (\is_array($value)) {
+            return array_map(self::toDoubleModel(...), $value);
+        }
+        if ($value instanceof RonObject) {
+            $object = new RonObject();
+            foreach ($value->members() as [$key, $member]) {
+                $object->set($key, self::toDoubleModel($member));
+            }
+
+            return $object;
         }
 
-        return \chr(0xF0 | ($cp >> 18))
-            . \chr(0x80 | (($cp >> 12) & 0x3F))
-            . \chr(0x80 | (($cp >> 6) & 0x3F))
-            . \chr(0x80 | ($cp & 0x3F));
+        return $value;
     }
 
     // Recurses over the parsed tree, whose depth parseValue() already bounded to

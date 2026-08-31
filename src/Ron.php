@@ -11,8 +11,10 @@ use Mbolli\Ron\Vocabulary\VocabularyValidator;
 /**
  * Public facade for RON <-> JSON conversion.
  *
- * Defaults mirror ron-go: ToJSON produces compact, canonically-ordered JSON;
- * FromJSON produces pretty, canonically-ordered RON.
+ * Defaults mirror ron-go: every conversion takes one {@see RonMode} and defaults to
+ * {@see RonMode::Pretty}, which preserves source member order. Only
+ * {@see RonMode::Canonical} sorts keys, and it applies the RFC 8785 / I-JSON contract
+ * rather than just reordering.
  */
 final class Ron {
     /** Library version (semver). */
@@ -31,17 +33,18 @@ final class Ron {
     /**
      * Convert RON to JSON.
      *
-     * @param bool $pretty    multiline output when true, compact when false
-     * @param bool $canonical sort object keys by RFC 8785 UTF-16 order when true
-     * @param int  $maxDepth  reject input nested deeper than this many levels
+     * Pretty and compact preserve source member order. Canonical produces RFC 8785
+     * canonical JSON, which normalizes numbers and rejects the I-JSON violations
+     * listed on {@see RonMode::Canonical}.
+     *
+     * @param int $maxDepth reject input nested deeper than this many levels
      */
     public static function toJson(
         string $ron,
-        bool $pretty = false,
-        bool $canonical = true,
+        RonMode $mode = RonMode::Pretty,
         int $maxDepth = self::DEFAULT_MAX_DEPTH,
     ): string {
-        return (new RonToJson($ron))->convert($pretty, $canonical, $maxDepth);
+        return (new RonToJson($ron))->convert($mode, $maxDepth);
     }
 
     /**
@@ -50,7 +53,7 @@ final class Ron {
      * When $vocabularies is non-empty, the parsed value is validated against those
      * typed vocabularies before rendering (invalid typed payloads throw a
      * RonException); pass `[]` to skip validation entirely. Unknown typed values
-     * remain ordinary objects. $registry defaults to the seven built-in vocabularies.
+     * remain ordinary objects. $registry defaults to the eight built-in vocabularies.
      *
      * @param null|(callable(list<int|string>, mixed): array{0: mixed, 1: bool}) $mapper
      *                                                                                         optional typed-value render hook: receives (path, value) and returns
@@ -60,19 +63,29 @@ final class Ron {
      */
     public static function fromJson(
         string $json,
-        bool $pretty = true,
-        bool $canonical = true,
+        RonMode $mode = RonMode::Pretty,
         ?callable $mapper = null,
         int $maxDepth = self::DEFAULT_MAX_DEPTH,
         array $vocabularies = self::DEFAULT_VOCABULARIES,
         ?VocabularyRegistry $registry = null,
     ): string {
-        $value = (new JsonParser($json, $mapper, $maxDepth))->parse();
+        if ($mode === RonMode::Canonical) {
+            // Canonicalize first: that single step applies the whole RFC 8785 and
+            // I-JSON contract (duplicate decoded names, lone surrogates, noncharacters,
+            // non-finite numbers) and rewrites number spelling, leaving the RON renderer
+            // with nothing to do but sort keys and emit compact bytes. Only a typed-value
+            // mapper, which needs JsonParser's path tracking, pays for the JSON round trip.
+            $value = $mapper === null
+                ? Rfc8785::canonicalModel($json, $maxDepth)
+                : (new JsonParser(Rfc8785::canonicalize($json, $maxDepth), $mapper, $maxDepth))->parse();
+        } else {
+            $value = (new JsonParser($json, $mapper, $maxDepth))->parse();
+        }
         if ($vocabularies !== []) {
             $value = (new VocabularyValidator($registry ?? VocabularyRegistry::official(), $vocabularies))->validate($value);
         }
 
-        return (new RonRenderer($pretty, $canonical))->render($value);
+        return (new RonRenderer($mode))->render($value);
     }
 
     /**
@@ -103,11 +116,10 @@ final class Ron {
      */
     public static function encode(
         mixed $value,
-        bool $pretty = true,
-        bool $canonical = true,
+        RonMode $mode = RonMode::Pretty,
         int $maxDepth = self::DEFAULT_MAX_DEPTH,
     ): string {
-        return (new RonRenderer($pretty, $canonical))->render(Encoder::toModel($value, $maxDepth));
+        return (new RonRenderer($mode))->render(Encoder::toModel($value, $maxDepth));
     }
 
     /**
@@ -121,7 +133,12 @@ final class Ron {
     public static function decode(string $ron, bool $associative = true, int $maxDepth = self::DEFAULT_MAX_DEPTH): mixed {
         // toJson is the authoritative depth gate; give json_decode one extra level so it
         // never rejects nesting that toJson already accepted.
-        return json_decode(self::toJson($ron, maxDepth: $maxDepth), $associative, max(1, $maxDepth + 1), JSON_THROW_ON_ERROR);
+        return json_decode(
+            self::toJson($ron, RonMode::Compact, $maxDepth),
+            $associative,
+            max(1, $maxDepth + 1),
+            JSON_THROW_ON_ERROR,
+        );
     }
 
     /**
@@ -135,7 +152,26 @@ final class Ron {
         array $vocabularies = self::DEFAULT_VOCABULARIES,
         ?VocabularyRegistry $registry = null,
     ): string {
-        return self::fromJson($json, pretty: false, canonical: true, maxDepth: $maxDepth, vocabularies: $vocabularies, registry: $registry);
+        return self::fromJson($json, RonMode::Canonical, maxDepth: $maxDepth, vocabularies: $vocabularies, registry: $registry);
+    }
+
+    /**
+     * Re-render RON source in the given mode (RON -> RON).
+     *
+     * Typed vocabularies are not applied: this reformats an existing document rather
+     * than validating one. Use it to derive canonical RON, and therefore the canonical
+     * hash, from RON input instead of JSON.
+     */
+    public static function format(
+        string $ron,
+        RonMode $mode = RonMode::Pretty,
+        int $maxDepth = self::DEFAULT_MAX_DEPTH,
+    ): string {
+        // Compact JSON is the order-preserving intermediate; canonical mode has to go
+        // through canonical JSON so the I-JSON checks see the RON-sourced value.
+        $json = self::toJson($ron, $mode === RonMode::Canonical ? RonMode::Canonical : RonMode::Compact, $maxDepth);
+
+        return self::fromJson($json, $mode, maxDepth: $maxDepth, vocabularies: []);
     }
 
     /**

@@ -6,6 +6,7 @@ namespace Mbolli\Ron\Tests;
 
 use Mbolli\Ron\Ron;
 use Mbolli\Ron\RonException;
+use Mbolli\Ron\RonMode;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -15,17 +16,19 @@ final class EncoderTest extends TestCase {
     use ComparesJson;
 
     public function testEncodeScalars(): void {
-        self::assertSame('null', Ron::encode(null, pretty: false));
-        self::assertSame('true', Ron::encode(true, pretty: false));
-        self::assertSame('false', Ron::encode(false, pretty: false));
-        self::assertSame('42', Ron::encode(42, pretty: false));
-        self::assertSame('hello', Ron::encode('hello', pretty: false));
-        self::assertSame("'a b'", Ron::encode('a b', pretty: false));
+        self::assertSame('null', Ron::encode(null, RonMode::Compact));
+        self::assertSame('true', Ron::encode(true, RonMode::Compact));
+        self::assertSame('false', Ron::encode(false, RonMode::Compact));
+        self::assertSame('42', Ron::encode(42, RonMode::Compact));
+        self::assertSame('hello', Ron::encode('hello', RonMode::Compact));
+        self::assertSame("'a b'", Ron::encode('a b', RonMode::Compact));
     }
 
-    public function testEncodeArraysAndObjectsAreCanonical(): void {
-        self::assertSame('[1 2 3]', Ron::encode([1, 2, 3], pretty: false));
-        self::assertSame('active true name Ada', Ron::encode(['name' => 'Ada', 'active' => true], pretty: false));
+    public function testEncodeArraysAndObjectsPreserveOrder(): void {
+        self::assertSame('[1 2 3]', Ron::encode([1, 2, 3], RonMode::Compact));
+        // Pretty and compact keep insertion order; only canonical sorts.
+        self::assertSame('name Ada active true', Ron::encode(['name' => 'Ada', 'active' => true], RonMode::Compact));
+        self::assertSame('active true name Ada', Ron::encode(['name' => 'Ada', 'active' => true], RonMode::Canonical));
         self::assertSame("name Ada\n", Ron::encode(['name' => 'Ada']));
     }
 
@@ -33,20 +36,20 @@ final class EncoderTest extends TestCase {
         $object = new \stdClass();
         $object->b = 2;
         $object->a = 1;
-        self::assertSame('a 1 b 2', Ron::encode($object, pretty: false));
+        self::assertSame('b 2 a 1', Ron::encode($object, RonMode::Compact));
 
         $serializable = new class implements \JsonSerializable {
             public function jsonSerialize(): array {
                 return ['v' => [1, 2]];
             }
         };
-        self::assertSame('v[1 2]', Ron::encode($serializable, pretty: false));
+        self::assertSame('v[1 2]', Ron::encode($serializable, RonMode::Compact));
     }
 
     public function testEncodePreservesIntegerAndFloatText(): void {
-        self::assertSame('n 9223372036854775807', Ron::encode(['n' => PHP_INT_MAX], pretty: false));
-        self::assertSame('x -12.5', Ron::encode(['x' => -12.5], pretty: false));
-        self::assertSame('x 0.1', Ron::encode(['x' => 0.1], pretty: false));
+        self::assertSame('n 9223372036854775807', Ron::encode(['n' => PHP_INT_MAX], RonMode::Compact));
+        self::assertSame('x -12.5', Ron::encode(['x' => -12.5], RonMode::Compact));
+        self::assertSame('x 0.1', Ron::encode(['x' => 0.1], RonMode::Compact));
     }
 
     public function testEncodeRejectsNonFiniteFloats(): void {
@@ -76,7 +79,7 @@ final class EncoderTest extends TestCase {
         $data = ['users' => [['id' => 1, 'name' => 'Ada', 'roles' => ['admin']]], 'count' => 1];
         self::assertSame(
             Ron::canonicalRon((string) json_encode($data)),
-            Ron::encode($data, pretty: false),
+            Ron::encode($data, RonMode::Canonical),
         );
     }
 

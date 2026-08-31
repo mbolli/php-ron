@@ -6,6 +6,7 @@ namespace Mbolli\Ron\Tests;
 
 use Mbolli\Ron\Ron;
 use Mbolli\Ron\RonException;
+use Mbolli\Ron\RonMode;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -17,6 +18,13 @@ final class ConformanceTest extends TestCase {
 
     private const DIR = __DIR__ . '/corpus/ron/testdata/conformance';
 
+    /** Manifest key infix -> mode, for the three `expected<Mode>JSON`/`RON` goldens. */
+    private const array MODES = [
+        'Pretty' => RonMode::Pretty,
+        'Compact' => RonMode::Compact,
+        'Canonical' => RonMode::Canonical,
+    ];
+
     /** @param array<string, mixed> $case */
     #[DataProvider('provideValidCases')]
     public function testValid(array $case): void {
@@ -26,46 +34,67 @@ final class ConformanceTest extends TestCase {
         foreach ($case['ronInputs'] as $ronPath) {
             $ron = self::read($ronPath);
 
-            if (isset($case['expectedCompactJSON'])) {
-                $compactJson = Ron::toJson($ron, pretty: false, canonical: true);
-                self::assertSame(self::read($case['expectedCompactJSON']), $compactJson, "compact JSON for {$ronPath}");
-                self::assertJsonStructure($jsonInput, $compactJson, "compact JSON round-trip for {$ronPath}");
+            foreach (self::MODES as $key => $mode) {
+                $json = Ron::toJson($ron, $mode);
+                self::assertSame(self::read($case["expected{$key}JSON"]), $json, "{$mode->value} JSON for {$ronPath}");
+                self::assertJsonStructure($jsonInput, $json, "{$mode->value} JSON round-trip for {$ronPath}");
             }
-            if (isset($case['expectedPrettyJSON'])) {
-                $prettyJson = Ron::toJson($ron, pretty: true, canonical: true);
-                self::assertSame(self::read($case['expectedPrettyJSON']), $prettyJson, "pretty JSON for {$ronPath}");
-                self::assertJsonStructure($jsonInput, $prettyJson, "pretty JSON round-trip for {$ronPath}");
-            }
-
-            // RON -> (RON via JSON) round-trips back to the same value.
-            self::assertJsonStructure($jsonInput, Ron::toJson($ron), "RON round-trip for {$ronPath}");
+            self::assertSame(
+                $case['expectedCanonicalJSONSHA256'],
+                hash('sha256', Ron::toJson($ron, RonMode::Canonical)),
+                "canonical JSON SHA-256 for {$ronPath}",
+            );
         }
 
         // JSON -> RON.
-        if (isset($case['expectedPrettyRON'])) {
-            $prettyRon = Ron::fromJson($jsonInput, pretty: true, canonical: true);
-            self::assertSame(self::read($case['expectedPrettyRON']), $prettyRon, 'pretty RON');
-            self::assertJsonStructure($jsonInput, Ron::toJson($prettyRon), 'pretty RON round-trip');
+        foreach (self::MODES as $key => $mode) {
+            $ron = Ron::fromJson($jsonInput, $mode);
+            self::assertSame(self::read($case["expected{$key}RON"]), $ron, "{$mode->value} RON");
+            self::assertJsonStructure($jsonInput, Ron::toJson($ron), "{$mode->value} RON round-trip");
         }
-        if (isset($case['expectedCompactRON'])) {
-            $compactRon = Ron::fromJson($jsonInput, pretty: false, canonical: true);
-            self::assertSame(self::read($case['expectedCompactRON']), $compactRon, 'compact RON');
-            self::assertJsonStructure($jsonInput, Ron::toJson($compactRon), 'compact RON round-trip');
-
-            if (isset($case['expectedCanonicalRONSHA256'])) {
-                self::assertSame(
-                    $case['expectedCanonicalRONSHA256'],
-                    hash('sha256', $compactRon),
-                    'canonical RON SHA-256',
-                );
-            }
-        }
+        self::assertSame(
+            $case['expectedCanonicalRONSHA256'],
+            hash('sha256', Ron::fromJson($jsonInput, RonMode::Canonical)),
+            'canonical RON SHA-256',
+        );
     }
 
     /** @return iterable<string, array{0: array<string, mixed>}> */
     public static function provideValidCases(): iterable {
         foreach (self::manifest()['valid'] as $case) {
             yield $case['name'] => [$case];
+        }
+    }
+
+    /** @param array<string, mixed> $case */
+    #[DataProvider('provideCanonicalRonFromRonCases')]
+    public function testCanonicalRonFromRon(array $case): void {
+        $canonical = Ron::format(self::read($case['inputRON']), RonMode::Canonical);
+
+        self::assertSame(self::read($case['expectedCanonicalRON']), $canonical, 'canonical RON');
+        self::assertSame($case['expectedCanonicalRONSHA256'], hash('sha256', $canonical), 'canonical RON SHA-256');
+    }
+
+    /** @return iterable<string, array{0: array<string, mixed>}> */
+    public static function provideCanonicalRonFromRonCases(): iterable {
+        foreach (self::manifest()['canonicalRON']['validRON'] as $case) {
+            yield $case['name'] => [$case];
+        }
+    }
+
+    #[DataProvider('provideInvalidCanonicalRonCases')]
+    public function testInvalidCanonicalRon(string $path): void {
+        // Valid base RON: only the canonical contract rejects these.
+        Ron::format(self::read($path), RonMode::Compact);
+
+        $this->expectException(RonException::class);
+        Ron::format(self::read($path), RonMode::Canonical);
+    }
+
+    /** @return iterable<string, array{0: string}> */
+    public static function provideInvalidCanonicalRonCases(): iterable {
+        foreach (self::manifest()['canonicalRON']['invalidRON'] as $path) {
+            yield $path => [$path];
         }
     }
 
@@ -112,7 +141,7 @@ final class ConformanceTest extends TestCase {
             return [null, false];
         };
 
-        $ron = Ron::fromJson($jsonInput, $options['isPretty'], $options['isCanonical'], $mapper);
+        $ron = Ron::fromJson($jsonInput, RonMode::from($options['mode']), $mapper);
         self::assertSame(self::read($case['expectedRON']), $ron, 'rendered RON');
 
         // Round-trip: produced RON parses back to the transformed value.

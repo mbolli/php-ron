@@ -9,7 +9,7 @@ use Mbolli\Ron\RonException;
 /**
  * Maps typed-value tags to the vocabulary that owns them and to a payload validator.
  *
- * {@see official()} builds the registry of the seven built-in vocabularies. Custom
+ * {@see official()} builds the registry of the eight built-in vocabularies. Custom
  * vocabularies are added with {@see register()}: a stable URI plus a map of tag
  * names to validators. A validator receives the payload (and the active
  * {@see VocabularyValidator} for recursing into nested values) and returns `true`
@@ -21,6 +21,7 @@ final class VocabularyRegistry {
     public const string CORE_V1 = CoreVocabulary::URI;
     public const string TIME_V1 = TimeVocabulary::URI;
     public const string NETWORK_V1 = NetworkVocabulary::URI;
+    public const string SET_V1 = SetVocabulary::URI;
     public const string MATH_V1 = MathVocabulary::URI;
     public const string SPATIAL_V1 = SpatialVocabulary::URI;
     public const string COLOR_V1 = ColorVocabulary::URI;
@@ -32,12 +33,13 @@ final class VocabularyRegistry {
     /** @var array<string, array{0: string, 1: \Closure}> tag => [owning uri, validator] */
     private array $tags = [];
 
-    /** Registry of all seven built-in vocabularies. */
+    /** Registry of all eight built-in vocabularies. */
     public static function official(): self {
         $registry = new self();
         $registry->register(CoreVocabulary::URI, CoreVocabulary::validators());
         $registry->register(TimeVocabulary::URI, TimeVocabulary::validators());
         $registry->register(NetworkVocabulary::URI, NetworkVocabulary::validators());
+        $registry->register(SetVocabulary::URI, SetVocabulary::validators());
         $registry->register(MathVocabulary::URI, MathVocabulary::validators());
         $registry->register(SpatialVocabulary::URI, SpatialVocabulary::validators());
         $registry->register(ColorVocabulary::URI, ColorVocabulary::validators());
