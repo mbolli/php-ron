@@ -6,6 +6,7 @@ namespace Mbolli\Ron\Tests;
 
 use Mbolli\Ron\Ron;
 use Mbolli\Ron\RonException;
+use Mbolli\Ron\RonMode;
 use Mbolli\Ron\Vocabulary\VocabularyRegistry;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -18,22 +19,30 @@ final class UnitTest extends TestCase {
 
     public function testBigIntegerTextIsPreserved(): void {
         // Beyond PHP's int range: must survive as text, not collapse to a float.
-        self::assertSame('{"n":9223372036854775808}', Ron::toJson('n 9223372036854775808'));
-        self::assertSame('n 9223372036854775808', Ron::canonicalRon('{"n":9223372036854775808}'));
+        self::assertSame('{"n":9223372036854775808}', Ron::toJson('n 9223372036854775808', RonMode::Compact));
+        self::assertSame('n 9223372036854775808', Ron::fromJson('{"n":9223372036854775808}', RonMode::Compact));
     }
 
     public function testExponentNumberTextIsPreserved(): void {
-        self::assertSame('{"v":-12.5e+2}', Ron::toJson('v -12.5e+2'));
-        self::assertSame('v -12.5e+2', Ron::canonicalRon('{"v":-12.5e+2}'));
+        self::assertSame('{"v":-12.5e+2}', Ron::toJson('v -12.5e+2', RonMode::Compact));
+        self::assertSame('v -12.5e+2', Ron::fromJson('{"v":-12.5e+2}', RonMode::Compact));
+    }
+
+    public function testCanonicalModeNormalizesNumberSpelling(): void {
+        // Canonical output re-serializes every number with the RFC 8785 ECMAScript
+        // algorithm, so unlike pretty/compact it does not preserve source spelling.
+        self::assertSame('v -1250', Ron::canonicalRon('{"v":-12.5e+2}'));
+        self::assertSame('n 9223372036854776000', Ron::canonicalRon('{"n":9223372036854775808}'));
+        self::assertSame('{"v":-1250}', Ron::toJson('v -12.5e+2', RonMode::Canonical));
     }
 
     public function testCommaPrefixedTokenIsString(): void {
-        self::assertSame('[",foo"]', Ron::toJson('[,foo]'));
-        self::assertSame('[","]', Ron::toJson('[,]'));
+        self::assertSame('[",foo"]', Ron::toJson('[,foo]', RonMode::Compact));
+        self::assertSame('[","]', Ron::toJson('[,]', RonMode::Compact));
     }
 
     public function testStandaloneApostropheToken(): void {
-        self::assertSame('["\'"]', Ron::toJson("[ ' ]"));
+        self::assertSame('["\'"]', Ron::toJson("[ ' ]", RonMode::Compact));
     }
 
     public function testQuotedStringDelimiterGrows(): void {
@@ -43,8 +52,8 @@ final class UnitTest extends TestCase {
     }
 
     public function testNonAsciiPassesThroughRaw(): void {
-        self::assertSame('åß∂ƒ', Ron::fromJson('"åß∂ƒ"', pretty: false));
-        self::assertSame('"åß∂ƒ"', Ron::toJson(Ron::fromJson('"åß∂ƒ"', pretty: false)));
+        self::assertSame('åß∂ƒ', Ron::fromJson('"åß∂ƒ"', RonMode::Compact));
+        self::assertSame('"åß∂ƒ"', Ron::toJson(Ron::fromJson('"åß∂ƒ"', RonMode::Compact), RonMode::Compact));
     }
 
     public function testInlineArrayBoundaryAt80Bytes(): void {
@@ -66,7 +75,7 @@ final class UnitTest extends TestCase {
         // A single '#'-prefixed key is a typed value: its payload may inline even as
         // a multi-key object, unlike the base single-key-only inline rule above.
         self::assertSame(
-            "point {#geo {coordinates [-73.9857 40.7484] type Point}}\n",
+            "point {#geo {type Point coordinates [-73.9857 40.7484]}}\n",
             Ron::fromJson('{"point":{"#geo":{"type":"Point","coordinates":[-73.9857,40.7484]}}}'),
         );
         // Typed values nested inside arrays collapse the same way.
@@ -86,6 +95,35 @@ final class UnitTest extends TestCase {
             "x {#note {\n  count 42\n  description 'this is a reasonably long description value that exceeds the budget'\n}}\n",
             Ron::fromJson($json),
         );
+    }
+
+    public function testCanonicalDuplicateNameSurvivesElisionFallback(): void {
+        // The root-object elision attempt swallows syntax errors and retries as a single
+        // root value; a canonical violation raised from a nested object must not be
+        // masked by that fallback (it used to surface as "unexpected trailing data").
+        $this->expectExceptionMessage('duplicate object name');
+        Ron::format('a {b 1 b 2}', RonMode::Canonical);
+    }
+
+    #[DataProvider('provideTopoRejectsExplicitNullOptionalMembersCases')]
+    public function testTopoRejectsExplicitNullOptionalMembers(string $json): void {
+        // `transform` and `bbox` are optional, but an explicit null is a schema
+        // violation rather than an absent member.
+        $this->expectException(RonException::class);
+        Ron::validate($json, [VocabularyRegistry::GEO_V1]);
+    }
+
+    /** @return iterable<string, array{0: string}> */
+    public static function provideTopoRejectsExplicitNullOptionalMembersCases(): iterable {
+        $topology = static fn (string $extra): string => '{"t":{"#topo":{"type":"Topology","objects":{},"arcs":[]' . $extra . '}}}';
+
+        yield 'transform' => [$topology(',"transform":null')];
+
+        yield 'bbox' => [$topology(',"bbox":null')];
+
+        yield 'geometry bbox' => [
+            '{"t":{"#topo":{"type":"Topology","arcs":[],"objects":{"a":{"type":"LineString","arcs":[0],"bbox":null}}}}}',
+        ];
     }
 
     public function testRootScalarRoundTrips(): void {
@@ -121,13 +159,15 @@ final class UnitTest extends TestCase {
     public function testRegexAcceptsCanonicalPayloads(): void {
         // #rx validates and renders: bare/quoted source, optional sorted flags. Flags-only edge
         // cases ("ii") are covered by the corpus; these add accepts + escape/order checks.
-        self::assertSame("r {#rx [^foo\\d+\$ i]}\n", Ron::fromJson('{"r":{"#rx":["^foo\\\\d+$","i"]}}'));
-        self::assertSame("r {#rx [(?<word>\\w+)]}\n", Ron::fromJson('{"r":{"#rx":["(?<word>\\\\w+)"]}}'));
+        // Every RON string decodes JSON escapes, so each regex backslash is doubled on the wire.
+        self::assertSame("r {#rx [^foo\\\\d+\$ i]}\n", Ron::fromJson('{"r":{"#rx":["^foo\\\\d+$","i"]}}'));
+        self::assertSame("r {#rx [(?<word>\\\\w+)]}\n", Ron::fromJson('{"r":{"#rx":["(?<word>\\\\w+)"]}}'));
         self::assertSame("r {#rx ['hello world']}\n", Ron::fromJson('{"r":{"#rx":["hello world"]}}'));
         self::assertSame("r {#rx [^a\$ dgimsy]}\n", Ron::fromJson('{"r":{"#rx":["^a$","dgimsy"]}}'));
         // A valid JS unicode escape is accepted (the \x{...} conversion is only for the
-        // compile check; the payload renders verbatim).
-        self::assertSame("r {#rx [\\u0041]}\n", Ron::fromJson('{"r":{"#rx":["\\\\u0041"]}}'));
+        // compile check; the payload keeps its characters, with the backslash escaped
+        // for the wire like any other RON string).
+        self::assertSame("r {#rx [\\\\u0041]}\n", Ron::fromJson('{"r":{"#rx":["\\\\u0041"]}}'));
     }
 
     #[DataProvider('provideRegexRejectsInvalidPayloadsCases')]

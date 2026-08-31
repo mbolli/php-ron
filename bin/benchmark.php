@@ -9,7 +9,8 @@ declare(strict_types=1);
  *   php -d opcache.enable_cli=1 -d opcache.jit_buffer_size=128M -d opcache.jit=tracing bin/benchmark.php
  *
  * Throughput is flat and linear in input size from ~1.5 KB to ~320 KB: JSON->RON
- * and the canonical hash run ~18 MB/s, RON->JSON ~14 MB/s. The heavy scanning is
+ * runs ~24-26 MB/s, RON->JSON ~18 MB/s, the canonical hash ~13 MB/s (it validates
+ * the whole RFC 8785 / I-JSON contract). The heavy scanning is
  * delegated to native strcspn/strpos and array_multisort, leaving PHP to do only
  * per-token dispatch. A 1-10 KB payload converts in well under a millisecond. See
  * the README "Performance" section for a comparison against the Go reference.
@@ -18,6 +19,7 @@ declare(strict_types=1);
 require __DIR__ . '/../vendor/autoload.php';
 
 use Mbolli\Ron\Ron;
+use Mbolli\Ron\RonMode;
 
 $iterations = (int) ($argv[1] ?? 5000);
 
@@ -51,12 +53,12 @@ function bench(string $label, int $iterations, int $bytes, callable $fn): void {
 foreach ([10, 200, 2000] as $users) {
     $json = makeDocument($users);
     $bytes = strlen($json);
-    $ron = Ron::fromJson($json, pretty: false);
+    $ron = Ron::fromJson($json, RonMode::Compact);
     $iter = max(200, (int) ($iterations * 200 / max(1, $users)));
 
     printf("\ndocument: %d users, %d bytes JSON, %d iterations\n", $users, $bytes, $iter);
-    bench('RON -> JSON (compact)', $iter, strlen($ron), static fn () => Ron::toJson($ron));
-    bench('JSON -> RON (compact)', $iter, $bytes, static fn () => Ron::fromJson($json, pretty: false));
+    bench('RON -> JSON (compact)', $iter, strlen($ron), static fn () => Ron::toJson($ron, RonMode::Compact));
+    bench('JSON -> RON (compact)', $iter, $bytes, static fn () => Ron::fromJson($json, RonMode::Compact));
     bench('JSON -> RON (pretty)', $iter, $bytes, static fn () => Ron::fromJson($json));
     bench('canonical hash', $iter, $bytes, static fn () => Ron::canonicalHash($json));
 }

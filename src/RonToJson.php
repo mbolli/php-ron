@@ -10,24 +10,39 @@ use Mbolli\Ron\Value\RonObject;
  * Streaming RON -> JSON converter (port of ron-go's json_direct.go + ToJSONInto).
  *
  * No intermediate value tree is built: values are written to the output buffer as
- * they are parsed. Object members are buffered and (when canonical) sorted before
- * emission, since JSON object key order is the only thing that needs look-ahead.
+ * they are parsed. Object members are buffered so a whole object is available before
+ * emission, which is what canonical key sorting needs.
+ *
+ * Pretty and compact preserve source member order. Canonical is not "compact plus a
+ * sort": it emits compact JSON with duplicate member names left intact and then hands
+ * the bytes to {@see Rfc8785}, which applies the full RFC 8785 / I-JSON contract.
  */
 final class RonToJson extends Scanner {
     private string $out = '';
-    private bool $canonical = true;
+    private bool $rejectDuplicateKeys = false;
     private string $indent = '';
     private int $maxDepth = 512;
 
     public function __construct(string $src) {
-        $this->src = $src;
-        $this->len = \strlen($src);
+        $this->setSource($src);
     }
 
-    public function convert(bool $pretty, bool $canonical, int $maxDepth = 512): string {
-        $this->canonical = $canonical;
+    public function convert(RonMode $mode = RonMode::Pretty, int $maxDepth = 512): string {
+        if ($mode === RonMode::Canonical) {
+            // Duplicate names must survive the RON pass so Rfc8785 can reject them;
+            // the RON-level check catches names that only collide once decoded
+            // (`{a 1 \u0061 2}`), which a deduplicating object would have collapsed.
+            $this->rejectDuplicateKeys = true;
+
+            return Rfc8785::canonicalize($this->convertText('', $maxDepth), $maxDepth);
+        }
+
+        return $this->convertText($mode === RonMode::Pretty ? '  ' : '', $maxDepth);
+    }
+
+    private function convertText(string $indent, int $maxDepth): string {
         $this->maxDepth = $maxDepth;
-        $this->indent = $pretty ? '  ' : '';
+        $this->indent = $indent;
         $this->out = '';
         $this->pos = 0;
 
@@ -49,11 +64,21 @@ final class RonToJson extends Scanner {
 
                 try {
                     $key = $this->parseKey();
+                    // skipWhitespace, not skipSpace: a comma here starts the value token
+                    // (`,foo` is the string ",foo"), it is not a member separator.
+                    $this->skipWhitespace();
                     $value = $this->renderValueToString(1);
-                } catch (RonException) {
+                } catch (RonException $e) {
+                    // A failed parse here just means the input is not a brace-elided
+                    // root object, so fall back. A canonical violation is a real error
+                    // about the document and must not be masked by that fallback.
+                    if ($e->isCanonicalViolation()) {
+                        throw $e;
+                    }
+
                     break;
                 }
-                $object->set($key, $value);
+                $this->setMember($object, $key, $value);
             }
 
             // Elision failed: discard the partial object and parse a single root value.
@@ -75,7 +100,7 @@ final class RonToJson extends Scanner {
         // saved buffer never has to be restored on the exception path.
         $saved = $this->out;
         $this->out = '';
-        $this->writeJsonValue($depth);
+        $this->writeJsonValueCurrent($depth);
         $captured = $this->out;
         $this->out = $saved;
 
@@ -112,7 +137,7 @@ final class RonToJson extends Scanner {
                     }
                     $key = $this->parseKey();
                     $this->skipWhitespace();
-                    $object->set($key, $this->renderValueToString($depth + 1));
+                    $this->setMember($object, $key, $this->renderValueToString($depth + 1));
                     $this->skipSeparators();
                 }
 
@@ -189,14 +214,29 @@ final class RonToJson extends Scanner {
                 return;
         }
 
-        $token = $this->tokenSpan();
+        // Classification looks at the raw source spelling, before escape decoding:
+        // `tr\u0075e` is the string "true", not the boolean.
+        [$start, $end] = $this->tokenSpanBounds();
+        $token = substr($this->src, $start, $end - $start);
         if ($token === 'true' || $token === 'false' || $token === 'null') {
             $this->out .= $token;
         } elseif (self::looksLikeNumber($token)) {
             $this->out .= $token;
         } else {
-            $this->out .= $this->jsonQuote($token);
+            $this->out .= $this->jsonQuote($this->decodeStringSpan($start, $end));
         }
+    }
+
+    /**
+     * Add a member, honouring the canonical-mode duplicate-name rejection. Outside
+     * canonical mode RonObject's last-wins-at-last-position dedup applies, matching
+     * how the rest of the library treats repeated names.
+     */
+    private function setMember(RonObject $object, string $key, string $value): void {
+        if ($this->rejectDuplicateKeys && $object->has($key)) {
+            throw RonException::canonical('duplicate object name in canonical RON');
+        }
+        $object->set($key, $value);
     }
 
     private function writeJsonObject(RonObject $object, int $depth): void {
@@ -205,11 +245,10 @@ final class RonToJson extends Scanner {
 
             return;
         }
+        // Member order is always source order here: canonical output is produced by
+        // handing these bytes to Rfc8785, which does the sorting.
         $keys = $object->keys;
         $values = $object->values; // pre-rendered JSON value text
-        if ($this->canonical) {
-            Canonical::sortKeyedValues($keys, $values);
-        }
         $count = \count($keys);
 
         if ($this->indent === '') {

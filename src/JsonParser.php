@@ -302,17 +302,17 @@ final class JsonParser {
                 if ($low >= 0xDC00 && $low <= 0xDFFF) {
                     $this->pos += 6;
 
-                    return self::utf8Encode(0x10000 + (($cp - 0xD800) << 10) + ($low - 0xDC00));
+                    return Utf8::encodeRune(0x10000 + (($cp - 0xD800) << 10) + ($low - 0xDC00));
                 }
             }
 
-            return self::utf8Encode(0xFFFD); // lone high surrogate
+            return Utf8::encodeRune(0xFFFD); // lone high surrogate
         }
         if ($cp >= 0xDC00 && $cp <= 0xDFFF) {
-            return self::utf8Encode(0xFFFD); // lone low surrogate
+            return Utf8::encodeRune(0xFFFD); // lone low surrogate
         }
 
-        return self::utf8Encode($cp);
+        return Utf8::encodeRune($cp);
     }
 
     private function readHex4(int $at): int {
@@ -325,25 +325,6 @@ final class JsonParser {
         }
 
         return (int) hexdec($hex);
-    }
-
-    private static function utf8Encode(int $cp): string {
-        if ($cp < 0x80) {
-            return \chr($cp);
-        }
-        if ($cp < 0x800) {
-            return \chr(0xC0 | ($cp >> 6)) . \chr(0x80 | ($cp & 0x3F));
-        }
-        if ($cp < 0x10000) {
-            return \chr(0xE0 | ($cp >> 12))
-                . \chr(0x80 | (($cp >> 6) & 0x3F))
-                . \chr(0x80 | ($cp & 0x3F));
-        }
-
-        return \chr(0xF0 | ($cp >> 18))
-            . \chr(0x80 | (($cp >> 12) & 0x3F))
-            . \chr(0x80 | (($cp >> 6) & 0x3F))
-            . \chr(0x80 | ($cp & 0x3F));
     }
 
     /** @param list<int|string> $path */

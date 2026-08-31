@@ -47,7 +47,7 @@
       <strong>php-ron</strong> is a performance-focused PHP implementation of
       <a href="https://github.com/starfederation/ron">RON (Readable Object Notation)</a>.
       RON keeps JSON's value model but drops avoidable syntax: elided top-level braces,
-      bare strings, optional commas, and repeated-quote strings with no escapes. It converts
+      bare strings, optional commas, and repeated-quote strings. It converts
       losslessly to and from JSON, so you can adopt it only where a person or an LLM reads or
       writes the data.
     </p>
@@ -182,18 +182,17 @@
   <section id="start" class="start">
     <h2>Quick start</h2>
     <div class="codeblock" data-copy="use Mbolli\Ron\Ron;
+use Mbolli\Ron\RonMode;
 
 // Encode/decode arbitrary PHP values, like json_encode/json_decode
-Ron::encode(['name' =&gt; 'Ada', 'active' =&gt; true]); // active true\nname Ada\n
-Ron::decode(&quot;name Ada\nactive true&quot;);             // ['active' =&gt; true, 'name' =&gt; 'Ada']
+Ron::encode(['name' =&gt; 'Ada', 'active' =&gt; true]); // &quot;name Ada\nactive true&quot;
+Ron::decode(&quot;name Ada\nactive true&quot;);             // ['name' =&gt; 'Ada', 'active' =&gt; true]
 
-// RON -&gt; JSON (compact by default, canonical key order)
-Ron::toJson(&quot;name Ada\nactive true&quot;);          // {&quot;active&quot;:true,&quot;name&quot;:&quot;Ada&quot;}
-Ron::toJson($ron, pretty: true);                // multiline JSON
-
-// JSON -&gt; RON (pretty by default, canonical key order)
-Ron::fromJson('{&quot;name&quot;:&quot;Ada&quot;,&quot;active&quot;:true}'); // active true\nname Ada\n
-Ron::fromJson($json, pretty: false);            // compact RON
+// One mode per conversion; Pretty is the default, Canonical sorts and
+// applies the RFC 8785 / I-JSON contract.
+Ron::toJson(&quot;name Ada\nactive true&quot;, RonMode::Compact);  // {&quot;name&quot;:&quot;Ada&quot;,&quot;active&quot;:true}
+Ron::fromJson('{&quot;name&quot;:&quot;Ada&quot;,&quot;active&quot;:true}');           // &quot;name Ada\nactive true&quot;
+Ron::format($ron, RonMode::Compact);                     // reformat RON in place
 
 // Canonical RON and its SHA-256 hash, and RFC 8785 (JCS) JSON
 Ron::canonicalRon($json);
@@ -202,18 +201,17 @@ Ron::canonicalJson($json);">
       <button class="copy" type="button" aria-label="Copy code"
         data-on:click="navigator.clipboard.writeText(el.closest('[data-copy]').dataset.copy); el.classList.add('copied'); setTimeout(() => el.classList.remove('copied'), 1400)">Copy</button>
 <pre class="code"><span class="hl-keyword">use</span> <span class="hl-type">Mbolli\Ron\Ron</span>;
+<span class="hl-keyword">use</span> <span class="hl-type">Mbolli\Ron\RonMode</span>;
 
 <span class="hl-comment">// Encode/decode arbitrary PHP values, like json_encode/json_decode</span>
-<span class="hl-type">Ron</span>::<span class="hl-property">encode</span>([<span class="hl-value">'name'</span> =&gt; <span class="hl-value">'Ada'</span>, <span class="hl-value">'active'</span> =&gt; true]); <span class="hl-comment">// active true\nname Ada\n</span>
-<span class="hl-type">Ron</span>::<span class="hl-property">decode</span>(<span class="hl-value">&quot;name Ada\nactive true&quot;</span>);             <span class="hl-comment">// ['active' =&gt; true, 'name' =&gt; 'Ada']</span>
+<span class="hl-type">Ron</span>::<span class="hl-property">encode</span>([<span class="hl-value">'name'</span> =&gt; <span class="hl-value">'Ada'</span>, <span class="hl-value">'active'</span> =&gt; true]); <span class="hl-comment">// &quot;name Ada\nactive true&quot;</span>
+<span class="hl-type">Ron</span>::<span class="hl-property">decode</span>(<span class="hl-value">&quot;name Ada\nactive true&quot;</span>);             <span class="hl-comment">// ['name' =&gt; 'Ada', 'active' =&gt; true]</span>
 
-<span class="hl-comment">// RON -&gt; JSON (compact by default, canonical key order)</span>
-<span class="hl-type">Ron</span>::<span class="hl-property">toJson</span>(<span class="hl-value">&quot;name Ada\nactive true&quot;</span>);          <span class="hl-comment">// {&quot;active&quot;:true,&quot;name&quot;:&quot;Ada&quot;}</span>
-<span class="hl-type">Ron</span>::<span class="hl-property">toJson</span>(<span class="hl-variable">$ron</span>, <span class="hl-property">pretty</span>: <span class="hl-keyword">true</span>);                <span class="hl-comment">// multiline JSON</span>
-
-<span class="hl-comment">// JSON -&gt; RON (pretty by default, canonical key order)</span>
-<span class="hl-type">Ron</span>::<span class="hl-property">fromJson</span>(<span class="hl-value">'{&quot;name&quot;:&quot;Ada&quot;,&quot;active&quot;:true}'</span>); <span class="hl-comment">// active true\nname Ada\n</span>
-<span class="hl-type">Ron</span>::<span class="hl-property">fromJson</span>(<span class="hl-variable">$json</span>, <span class="hl-property">pretty</span>: <span class="hl-keyword">false</span>);            <span class="hl-comment">// compact RON</span>
+<span class="hl-comment">// One mode per conversion; Pretty is the default, Canonical sorts and</span>
+<span class="hl-comment">// applies the RFC 8785 / I-JSON contract.</span>
+<span class="hl-type">Ron</span>::<span class="hl-property">toJson</span>(<span class="hl-value">&quot;name Ada\nactive true&quot;</span>, <span class="hl-type">RonMode</span>::<span class="hl-property">Compact</span>);  <span class="hl-comment">// {&quot;name&quot;:&quot;Ada&quot;,&quot;active&quot;:true}</span>
+<span class="hl-type">Ron</span>::<span class="hl-property">fromJson</span>(<span class="hl-value">'{&quot;name&quot;:&quot;Ada&quot;,&quot;active&quot;:true}'</span>);           <span class="hl-comment">// &quot;name Ada\nactive true&quot;</span>
+<span class="hl-type">Ron</span>::<span class="hl-property">format</span>(<span class="hl-variable">$ron</span>, <span class="hl-type">RonMode</span>::<span class="hl-property">Compact</span>);                     <span class="hl-comment">// reformat RON in place</span>
 
 <span class="hl-comment">// Canonical RON and its SHA-256 hash, and RFC 8785 (JCS) JSON</span>
 <span class="hl-type">Ron</span>::<span class="hl-property">canonicalRon</span>(<span class="hl-variable">$json</span>);
@@ -235,13 +233,13 @@ Ron::canonicalJson($json);">
       <figure class="vocab-col">
         <figcaption>RON</figcaption>
 <pre class="code" aria-label="Typed values in RON"><!-- build:vocab-sample --><span class="hl-keyword">account</span> <span class="hl-property">{</span><span class="hl-keyword">#uid</span> <span class="hl-value">4f6e2a91-0c3d-4b7a-9f21-1a2b3c4d5e6f</span><span class="hl-property">}</span>
-<span class="hl-keyword">pattern</span> <span class="hl-property">{</span><span class="hl-keyword">#rx</span> <span class="hl-property">[</span><span class="hl-value">^foo\d+$</span> <span class="hl-value">i</span><span class="hl-property">]</span><span class="hl-property">}</span>
+<span class="hl-keyword">pattern</span> <span class="hl-property">{</span><span class="hl-keyword">#rx</span> <span class="hl-property">[</span><span class="hl-value">^foo\\d+$</span> <span class="hl-value">i</span><span class="hl-property">]</span><span class="hl-property">}</span>
 <span class="hl-keyword">created</span> <span class="hl-property">{</span><span class="hl-keyword">#utc</span> <span class="hl-value">2026-06-13T00:00:00Z</span><span class="hl-property">}</span>
 <span class="hl-keyword">ttl</span> <span class="hl-property">{</span><span class="hl-keyword">#dur</span> <span class="hl-value">PT1H30M</span><span class="hl-property">}</span>
 <span class="hl-keyword">host</span> <span class="hl-property">{</span><span class="hl-keyword">#ip4</span> <span class="hl-value">192.0.2.1</span><span class="hl-property">}</span>
 <span class="hl-keyword">balance</span> <span class="hl-property">{</span><span class="hl-keyword">#dec</span> <span class="hl-value">'1234.56'</span><span class="hl-property">}</span>
 <span class="hl-keyword">score</span> <span class="hl-property">{</span><span class="hl-keyword">#f3v</span> <span class="hl-property">[</span><span class="hl-number">1.5</span> <span class="hl-number">2.5</span> <span class="hl-number">3.5</span><span class="hl-property">]</span><span class="hl-property">}</span>
-<span class="hl-keyword">location</span> <span class="hl-property">{</span><span class="hl-keyword">#lla</span> <span class="hl-property">[</span><span class="hl-number">-73.9857</span> <span class="hl-number">40.7484</span> <span class="hl-number">381</span><span class="hl-property">]</span><span class="hl-property">}</span>
+<span class="hl-keyword">roles</span> <span class="hl-property">{</span><span class="hl-keyword">#set</span> <span class="hl-property">[</span><span class="hl-value">admin</span> <span class="hl-value">reader</span> <span class="hl-value">writer</span><span class="hl-property">]</span><span class="hl-property">}</span>
 <span class="hl-keyword">accent</span> <span class="hl-property">{</span><span class="hl-keyword">#clr</span> <span class="hl-property">[</span><span class="hl-value">oklch</span> <span class="hl-number">0.7</span> <span class="hl-number">0.15</span> <span class="hl-number">230</span><span class="hl-property">]</span><span class="hl-property">}</span>
 <span class="hl-keyword">parent</span> <span class="hl-property">{</span><span class="hl-keyword">#</span> <span class="hl-number">300</span><span class="hl-property">}</span><!-- /build:vocab-sample --></pre>
       </figure>
@@ -252,10 +250,11 @@ Ron::canonicalJson($json);">
             <tr><td><code>core</code></td><td><code>#uid #url #rx #dec #b64 #sha256 # #tag</code></td></tr>
             <tr><td><code>time</code></td><td><code>#utc #dur</code></td></tr>
             <tr><td><code>network</code></td><td><code>#ip4 #ip6 #cdr</code></td></tr>
+            <tr><td><code>set</code></td><td><code>#set #bits</code></td></tr>
             <tr><td><code>math</code></td><td><code>#i64 #u64 #f64 #ivN #vN #iv2&hellip;4 #f2v&hellip;4v #qat #eul #m2x #m3x #m4x</code></td></tr>
-            <tr><td><code>spatial</code></td><td><code>#lla #sph #cyl #bx2 #bx3 #spr #pln #ray #ln2 #ln3 #tri #fru #sh3 #vox</code></td></tr>
+            <tr><td><code>spatial</code></td><td><code>#sph #cyl #bx2 #bx3 #spr #pln #ray #ln2 #ln3 #tri #fru #sh3 #vox</code></td></tr>
             <tr><td><code>color</code></td><td><code>#clr</code></td></tr>
-            <tr><td><code>geo</code></td><td><code>#geo</code></td></tr>
+            <tr><td><code>geo</code></td><td><code>#geo #topo</code></td></tr>
           </tbody>
         </table>
       </div>
@@ -372,11 +371,12 @@ Ron::canonicalJson($json);">
         <thead><tr><th>Method</th><th>Does</th></tr></thead>
         <tbody>
           <!-- build:api-methods -->
-          <tr><td><code><span class="hl-property">toJson</span>(string <span class="hl-variable">$ron</span>, bool <span class="hl-variable">$pretty</span> = <span class="hl-keyword">false</span>, bool <span class="hl-variable">$canonical</span> = <span class="hl-keyword">true</span>)</code></td><td>RON to JSON (compact, canonical key order by default).</td></tr>
-          <tr><td><code><span class="hl-property">fromJson</span>(string <span class="hl-variable">$json</span>, bool <span class="hl-variable">$pretty</span> = <span class="hl-keyword">true</span>, bool <span class="hl-variable">$canonical</span> = <span class="hl-keyword">true</span>, ?<span class="hl-keyword">callable</span> <span class="hl-variable">$mapper</span> = <span class="hl-keyword">null</span>, array <span class="hl-variable">$vocabularies</span> = [<span class="hl-type">VocabularyRegistry</span>::<span class="hl-property">CORE_V1</span>], ?VocabularyRegistry <span class="hl-variable">$registry</span> = <span class="hl-keyword">null</span>)</code></td><td>JSON to RON (pretty by default); optional typed-value render hook and typed-vocabulary validation (core enabled by default).</td></tr>
-          <tr><td><code><span class="hl-property">encode</span>(mixed <span class="hl-variable">$value</span>, bool <span class="hl-variable">$pretty</span> = <span class="hl-keyword">true</span>, bool <span class="hl-variable">$canonical</span> = <span class="hl-keyword">true</span>)</code></td><td>Encode any PHP value as RON, like <code>json_encode</code>.</td></tr>
+          <tr><td><code><span class="hl-property">toJson</span>(string <span class="hl-variable">$ron</span>, RonMode <span class="hl-variable">$mode</span> = <span class="hl-type">RonMode</span>::<span class="hl-property">Pretty</span>)</code></td><td>RON to JSON. <code>Pretty</code> and <code>Compact</code> keep source order; <code>Canonical</code> is RFC 8785 JSON.</td></tr>
+          <tr><td><code><span class="hl-property">fromJson</span>(string <span class="hl-variable">$json</span>, RonMode <span class="hl-variable">$mode</span> = <span class="hl-type">RonMode</span>::<span class="hl-property">Pretty</span>, ?<span class="hl-keyword">callable</span> <span class="hl-variable">$mapper</span> = <span class="hl-keyword">null</span>, array <span class="hl-variable">$vocabularies</span> = [<span class="hl-type">VocabularyRegistry</span>::<span class="hl-property">CORE_V1</span>], ?VocabularyRegistry <span class="hl-variable">$registry</span> = <span class="hl-keyword">null</span>)</code></td><td>JSON to RON; optional typed-value render hook and typed-vocabulary validation (core enabled by default).</td></tr>
+          <tr><td><code><span class="hl-property">format</span>(string <span class="hl-variable">$ron</span>, RonMode <span class="hl-variable">$mode</span> = <span class="hl-type">RonMode</span>::<span class="hl-property">Pretty</span>)</code></td><td>Re-render RON source in another mode (RON to RON).</td></tr>
+          <tr><td><code><span class="hl-property">encode</span>(mixed <span class="hl-variable">$value</span>, RonMode <span class="hl-variable">$mode</span> = <span class="hl-type">RonMode</span>::<span class="hl-property">Pretty</span>)</code></td><td>Encode any PHP value as RON, like <code>json_encode</code>.</td></tr>
           <tr><td><code><span class="hl-property">decode</span>(string <span class="hl-variable">$ron</span>, bool <span class="hl-variable">$associative</span> = <span class="hl-keyword">true</span>)</code></td><td>Decode RON to a PHP value, like <code>json_decode</code>.</td></tr>
-          <tr><td><code><span class="hl-property">canonicalRon</span>(string <span class="hl-variable">$json</span>)</code></td><td>Compact, canonically-ordered RON (the canonical byte form).</td></tr>
+          <tr><td><code><span class="hl-property">canonicalRon</span>(string <span class="hl-variable">$json</span>)</code></td><td>Canonical RON: compact bytes for an RFC 8785 / I-JSON value.</td></tr>
           <tr><td><code><span class="hl-property">canonicalHash</span>(string <span class="hl-variable">$json</span>)</code></td><td>SHA-256 of the canonical RON, 64 lowercase hex digits.</td></tr>
           <tr><td><code><span class="hl-property">canonicalJson</span>(string <span class="hl-variable">$json</span>)</code></td><td>RFC 8785 (JCS) canonical JSON.</td></tr>
           <tr><td><code><span class="hl-property">validate</span>(string <span class="hl-variable">$json</span>, array <span class="hl-variable">$vocabularies</span> = [<span class="hl-type">VocabularyRegistry</span>::<span class="hl-property">CORE_V1</span>], ?VocabularyRegistry <span class="hl-variable">$registry</span> = <span class="hl-keyword">null</span>)</code></td><td>Validate typed payloads against the enabled vocabularies; throws on invalid.</td></tr>
@@ -400,18 +400,19 @@ Ron::canonicalJson($json);">
       <table>
         <thead><tr><th>Conversion</th><th>php-ron</th><th>ron-go (Go)</th><th>vs ron-go</th></tr></thead>
         <tbody>
-          <tr><td>JSON &rarr; RON (compact)</td><td>~19 MB/s</td><td>~17 MB/s</td><td>~on par</td></tr>
-          <tr><td>JSON &rarr; RON (pretty)</td><td>~16 MB/s</td><td>~17 MB/s</td><td>~on par</td></tr>
-          <tr><td>RON &rarr; JSON (compact)</td><td>~15 MB/s</td><td>~81 MB/s</td><td>~5.7&times; slower</td></tr>
-          <tr><td>canonical hash</td><td>~19 MB/s</td><td>&mdash;</td><td>&mdash;</td></tr>
+          <tr><td>JSON &rarr; RON (compact)</td><td>~29 MB/s</td><td>~12 MB/s</td><td>~2.4&times; faster</td></tr>
+          <tr><td>JSON &rarr; RON (pretty)</td><td>~26 MB/s</td><td>~12 MB/s</td><td>~2.2&times; faster</td></tr>
+          <tr><td>RON &rarr; JSON (compact)</td><td>~19 MB/s</td><td>~147 MB/s</td><td>~7.6&times; slower</td></tr>
+          <tr><td>canonical hash</td><td>~13 MB/s</td><td>~5 MB/s</td><td>~2.5&times; faster</td></tr>
         </tbody>
       </table>
     </div>
     <p class="footnote">
-      php-ron matches the Go reference on JSON&nbsp;&rarr;&nbsp;RON (ron-go decodes JSON through Go's
-      <code>encoding/json</code>; php-ron uses a hand-rolled scanner). On RON&nbsp;&rarr;&nbsp;JSON,
-      ron-go streams in near-zero-allocation compiled code: the realistic interpreter tax for that
-      direction. Numbers are from one ~31&nbsp;KB document on one machine; run
+      php-ron is ahead of the Go reference on JSON&nbsp;&rarr;&nbsp;RON and on the canonical hash
+      (ron-go decodes JSON through Go's <code>encoding/json</code>; php-ron uses a hand-rolled
+      scanner and canonicalizes in a single parse). On RON&nbsp;&rarr;&nbsp;JSON, ron-go streams in
+      near-zero-allocation compiled code: the realistic interpreter tax for that direction. Numbers
+      are from one ~31&nbsp;KB document on one machine (ron-go v0.1.1); run
       <code>composer benchmark</code> to reproduce.
     </p>
   </section>

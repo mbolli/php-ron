@@ -11,7 +11,9 @@ namespace Mbolli\Ron\Tests;
  * element order is significant. PHPUnit's assertEqualsCanonicalizing sorts arrays
  * by value, which scrambles associative arrays of mixed-type values, so this
  * recursively ksorts associative arrays while preserving list order, then compares
- * strictly.
+ * strictly. Integer-valued floats are folded to int first: RON and JSON have a single
+ * number type, and canonical output re-serializes 1E2 as 100, so the int/float
+ * distinction PHP invents while decoding is not a real difference.
  */
 trait ComparesJson {
     private static function assertSameJsonValue(mixed $expected, mixed $actual, string $message = ''): void {
@@ -19,6 +21,14 @@ trait ComparesJson {
     }
 
     private static function normalizeJson(mixed $value): mixed {
+        // Guard the range too: casting a float beyond PHP_INT_MAX is undefined.
+        if (
+            \is_float($value) && is_finite($value)
+            && $value >= (float) PHP_INT_MIN && $value <= (float) PHP_INT_MAX
+            && (float) (int) $value === $value
+        ) {
+            return (int) $value;
+        }
         if (\is_array($value)) {
             $isList = array_is_list($value);
             $value = array_map(self::normalizeJson(...), $value);
