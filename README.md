@@ -4,7 +4,7 @@
 [![CI](https://github.com/mbolli/php-ron/actions/workflows/ci.yml/badge.svg)](https://github.com/mbolli/php-ron/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Downloads](https://img.shields.io/packagist/dt/mbolli/php-ron)](https://packagist.org/packages/mbolli/php-ron)
-[![Tests](https://img.shields.io/badge/tests-305%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-309%20passing-brightgreen)](tests/)
 [![PHPStan](https://img.shields.io/badge/PHPStan-level%209-brightgreen)](.phpstan.neon)
 [![Code style](https://img.shields.io/badge/code%20style-php--cs--fixer-brightgreen)](.php-cs-fixer.php)
 

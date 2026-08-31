@@ -67,7 +67,7 @@
     <ul class="badges" aria-label="Project facts">
       <li>PHP &ge; 8.3</li>
       <li>MIT licensed</li>
-      <li>270 tests passing</li>
+      <li>309 tests passing</li>
       <li>PHPStan level 9</li>
     </ul>
   </section>
@@ -162,13 +162,11 @@
       <li>
         <h3>Typed vocabularies</h3>
         <p>Render <code>{#utc ...}</code>-style typed values compactly and optionally validate their
-          payloads against the official vocabularies (core, time, network, math, spatial, color,
-          geo) &mdash; or register your own.</p>
+          payloads against the official vocabularies (core, time, network, set, math, spatial, color, geo) &mdash; or register your own.</p>
       </li>
       <li>
         <h3>Built for speed</h3>
-        <p>Hot paths scan bytes with native C functions, sort keys with <code>array_multisort</code>,
-          and stream RON&nbsp;&rarr;&nbsp;JSON without an intermediate tree.</p>
+        <p>Hot paths scan bytes with native C functions rather than per-character PHP loops, stream RON &rarr; JSON without an intermediate tree, and skip the escape-aware scan entirely for sources that cannot need it.</p>
       </li>
       <li>
         <h3>One small API</h3>
