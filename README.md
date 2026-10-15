@@ -198,3 +198,7 @@ post-install hook), so the following is enough after cloning:
 composer install
 composer test     # or: composer check  (lint + phpstan + test)
 ```
+
+## Maintainer
+
+Maintained by [Michael Bolli](https://github.com/mbolli) at [zwei und eins gmbh](https://zweiundeins.gmbh), Aarberg, Switzerland.
